@@ -1,6 +1,8 @@
 # Installer (TypeScript/Node.js)
 
-A GitHub release installer service, running on [Node.js](https://nodejs.org) with [Hono](https://hono.dev).
+A GitHub release installer service, running on [Node.js](https://nodejs.org) with [Hono](https://hono.dev). This project is a port of [jpillora/installer](https://github.com/jpillora/installer).
+
+The main branch of this repo is deployed to [i.captainsafia.sh](https://i.captainsafia.sh/).
 
 ## Quick Start
 
