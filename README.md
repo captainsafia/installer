@@ -1,18 +1,43 @@
-# Installer (TypeScript/Bun)
+# Installer (TypeScript/Node.js)
 
-A TypeScript port of the [installer](https://github.com/jpillora/installer) service, running on [Bun](https://bun.sh) with [Hono](https://hono.dev).
+A GitHub release installer service, running on [Node.js](https://nodejs.org) with [Hono](https://hono.dev).
 
 ## Quick Start
 
 ```bash
 # Install dependencies
-bun install
+npm install
 
-# Run development server
-bun run dev
+# Run development server (with hot reload)
+npm run dev
+
+# Build for production
+npm run build
 
 # Run production server
-bun run start
+npm start
+```
+
+## Cloudflare Deployment
+
+This app can be deployed to Cloudflare Workers:
+
+```bash
+# Install dependencies (includes wrangler)
+npm install
+
+# Run locally with Cloudflare Workers runtime
+npm run dev:cf
+
+# Deploy to Cloudflare Workers
+npm run deploy
+```
+
+### Setting Secrets
+
+```bash
+# Set your GitHub token for higher API rate limits
+wrangler secret put GITHUB_TOKEN
 ```
 
 ## Configuration

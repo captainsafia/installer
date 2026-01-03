@@ -1,3 +1,4 @@
+import { serve } from "@hono/node-server";
 import { loadConfigFromEnv } from "./config";
 import { createApp } from "./handler";
 
@@ -16,10 +17,10 @@ if (config.forceRepo) {
 
 const app = createApp(config);
 
-const server = Bun.serve({
+serve({
+  fetch: app.fetch,
   port: config.port,
   hostname: config.host || "0.0.0.0",
-  fetch: app.fetch,
+}, (info) => {
+  console.log(`listening on ${info.address}:${info.port}...`);
 });
-
-console.log(`listening on ${server.hostname}:${server.port}...`);

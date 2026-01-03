@@ -1,0 +1,10 @@
+name = "installer"
+main = "src/worker.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+USER = "captainsafia"
+
+# Uncomment to set secrets via wrangler secret put
+# GITHUB_TOKEN - Set via: wrangler secret put GITHUB_TOKEN

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Config } from "./config";
 import type { Query } from "./types";
 import { GitHubClient } from "./github";
@@ -32,7 +33,7 @@ export function createApp(config: Config): Hono {
       }
     }
 
-    const showError = (msg: string, code: number) => {
+    const showError = (msg: string, code: ContentfulStatusCode) => {
       const cleaned = msg.replace(errMsgRe, "");
       const body = qtype === "script" ? `echo '${cleaned}'` : cleaned;
       return c.text(body, code);
