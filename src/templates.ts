@@ -12,22 +12,22 @@ export function renderShellScript(result: QueryResult): string {
     )
     .join("\n");
 
-  return `#!/bin/bash
-if [ "$DEBUG" == "1" ]; then
+  return `#!/bin/sh
+if [ "$DEBUG" = "1" ]; then
 	set -x
 fi
 TMP_DIR=$(mktemp -d -t installer-XXXXXXXXXX)
-function cleanup {
-	rm -rf $TMP_DIR > /dev/null
+cleanup() {
+	rm -rf "$TMP_DIR" > /dev/null
 }
-function fail {
+fail() {
 	cleanup
 	msg=$1
 	echo "============"
 	echo "Error: $msg" 1>&2
 	exit 1
 }
-function install {
+install_binary() {
 	#settings
 	USER="${result.user}"
 	PROG="${result.program}"
@@ -37,9 +37,8 @@ function install {
 	INSECURE="${result.insecure}"
 	OUT_DIR="${result.moveToPath ? "/usr/local/bin" : "$(pwd)"}"
 	GH="https://github.com"
-	#bash check
-	[ ! "$BASH_VERSION" ] && fail "Please use bash instead"
-	[ ! -d $OUT_DIR ] && fail "output directory missing: $OUT_DIR"
+	#check output dir exists
+	[ ! -d "$OUT_DIR" ] && fail "output directory missing: $OUT_DIR"
 	#dependency check, assume we are a standard POISX machine
 	which find > /dev/null || fail "find not installed"
 	which xargs > /dev/null || fail "xargs not installed"
@@ -51,22 +50,22 @@ function install {
 	GET=""
 	if which curl > /dev/null; then
 		GET="curl"
-		if [[ $INSECURE = "true" ]]; then GET="$GET --insecure"; fi
+		if [ "$INSECURE" = "true" ]; then GET="$GET --insecure"; fi
 		GET="$GET --fail -# -L"
 	elif which wget > /dev/null; then
 		GET="wget"
-		if [[ $INSECURE = "true" ]]; then GET="$GET --no-check-certificate"; fi
+		if [ "$INSECURE" = "true" ]; then GET="$GET --no-check-certificate"; fi
 		GET="$GET -qO-"
 	else
 		fail "neither wget/curl are installed"
 	fi
 	#debug HTTP
-	if [ "$DEBUG" == "1" ]; then
+	if [ "$DEBUG" = "1" ]; then
 		GET="$GET -v"
 	fi
 	#optional auth to install from private repos
 	AUTH="\${GITHUB_TOKEN}"
-	if [ ! -z "$AUTH" ]; then
+	if [ -n "$AUTH" ]; then
 		GET="$GET -H 'Authorization: $AUTH'"
 	fi
 	#find OS
@@ -85,7 +84,7 @@ function install {
 	ARCH="${result.arch}"
 	if [ -n "$ARCH" ]; then
 		echo "Override architecture: $ARCH"
-	elif [[ $OS = "darwin" ]] && sysctl hw.optional.arm64 2>/dev/null | grep -q ': 1'; then
+	elif [ "$OS" = "darwin" ] && sysctl hw.optional.arm64 2>/dev/null | grep -q ': 1'; then
 		ARCH="arm64"
 	elif uname -m | grep -E 'loong(arch)?64' > /dev/null; then
 		ARCH="loong64"
@@ -94,7 +93,7 @@ function install {
 		${
       !result.m1Asset
         ? `# no m1 assets. if on mac arm64, rosetta allows fallback to amd64
-		if [[ $OS = "darwin" ]]; then
+		if [ "$OS" = "darwin" ]; then
 			ARCH="amd64"
 		fi`
         : ""
@@ -118,10 +117,10 @@ ${assetCases}
 	#got URL! download it...
 	echo -n "${result.moveToPath ? "Installing" : "Downloading"}"
 	echo -n " $USER/$PROG"
-	if [ ! -z "$RELEASE" ]; then
+	if [ -n "$RELEASE" ]; then
 		echo -n " $RELEASE"
 	fi
-	if [ ! -z "$ASPROG" ]; then
+	if [ -n "$ASPROG" ]; then
 		echo -n " as $ASPROG"
 	fi
 	echo -n " (\${OS}/\${ARCH})"
@@ -136,33 +135,33 @@ ${assetCases}
       : `echo "....."`
   }
 	#enter tempdir
-	mkdir -p $TMP_DIR
-	cd $TMP_DIR
-	if [[ $FTYPE = ".gz" ]]; then
+	mkdir -p "$TMP_DIR"
+	cd "$TMP_DIR" || fail "cd to temp dir failed"
+	if [ "$FTYPE" = ".gz" ]; then
 		which gzip > /dev/null || fail "gzip is not installed"
-		bash -c "$GET $URL" | gzip -d - > $PROG || fail "download failed"
-	elif [[ $FTYPE = ".bz2" ]]; then
+		sh -c "$GET $URL" | gzip -d - > "$PROG" || fail "download failed"
+	elif [ "$FTYPE" = ".bz2" ]; then
 		which bzip2 > /dev/null || fail "bzip2 is not installed"
-		bash -c "$GET $URL" | bzip2 -d - > $PROG || fail "download failed"
-	elif [[ $FTYPE = ".tar.bz" ]] || [[ $FTYPE = ".tar.bz2" ]]; then
+		sh -c "$GET $URL" | bzip2 -d - > "$PROG" || fail "download failed"
+	elif [ "$FTYPE" = ".tar.bz" ] || [ "$FTYPE" = ".tar.bz2" ]; then
 		which tar > /dev/null || fail "tar is not installed"
 		which bzip2 > /dev/null || fail "bzip2 is not installed"
-		bash -c "$GET $URL" | tar jxf - || fail "download failed"
-	elif [[ $FTYPE = ".tar.gz" ]] || [[ $FTYPE = ".tgz" ]]; then
+		sh -c "$GET $URL" | tar jxf - || fail "download failed"
+	elif [ "$FTYPE" = ".tar.gz" ] || [ "$FTYPE" = ".tgz" ]; then
 		which tar > /dev/null || fail "tar is not installed"
 		which gzip > /dev/null || fail "gzip is not installed"
-		bash -c "$GET $URL" | tar zxf - || fail "download failed"
-	elif [[ $FTYPE = ".tar.xz" ]] || [[ $FTYPE = ".txz" ]]; then
+		sh -c "$GET $URL" | tar zxf - || fail "download failed"
+	elif [ "$FTYPE" = ".tar.xz" ] || [ "$FTYPE" = ".txz" ]; then
 		which tar > /dev/null || fail "tar is not installed"
 		which xz > /dev/null || fail "xz is not installed"
-		bash -c "$GET $URL" | tar Jxf - || fail "download failed"
-	elif [[ $FTYPE = ".zip" ]]; then
+		sh -c "$GET $URL" | tar Jxf - || fail "download failed"
+	elif [ "$FTYPE" = ".zip" ]; then
 		which unzip > /dev/null || fail "unzip is not installed"
-		bash -c "$GET $URL" > tmp.zip || fail "download failed"
+		sh -c "$GET $URL" > tmp.zip || fail "download failed"
 		unzip -o -qq tmp.zip || fail "unzip failed"
 		rm tmp.zip || fail "cleanup failed"
-	elif [[ $FTYPE = ".bin" ]]; then
-		bash -c "$GET $URL" > "${result.program}_\${OS}_\${ARCH}" || fail "download failed"
+	elif [ "$FTYPE" = ".bin" ]; then
+		sh -c "$GET $URL" > "${result.program}_\${OS}_\${ARCH}" || fail "download failed"
 	else
 		fail "unknown file type: $FTYPE"
 	fi
@@ -172,22 +171,23 @@ ${assetCases}
 		fail "could not find find binary (largest file)"
 	fi
 	#ensure its larger than 1MB
-	if [[ $(du -m $TMP_BIN | cut -f1) -lt 1 ]]; then
+	SIZE=$(du -m "$TMP_BIN" | cut -f1)
+	if [ "$SIZE" -lt 1 ]; then
 		fail "no binary found ($TMP_BIN is not larger than 1MB)"
 	fi
 	#move into PATH or cwd
-	chmod +x $TMP_BIN || fail "chmod +x failed"
+	chmod +x "$TMP_BIN" || fail "chmod +x failed"
 	DEST="$OUT_DIR/$PROG"	
-	if [ ! -z "$ASPROG" ]; then
+	if [ -n "$ASPROG" ]; then
 		DEST="$OUT_DIR/$ASPROG"
 	fi
 	#move without sudo
-	OUT=$(mv $TMP_BIN $DEST 2>&1)
+	OUT=$(mv "$TMP_BIN" "$DEST" 2>&1)
 	STATUS=$?
 	if [ $STATUS -ne 0 ]; then
-		if [[ $OUT =~ "Permission denied" ]]; then
+		if echo "$OUT" | grep -q "Permission denied"; then
 			echo "mv with sudo..."
-			sudo mv $TMP_BIN $DEST || fail "sudo mv failed" 
+			sudo mv "$TMP_BIN" "$DEST" || fail "sudo mv failed" 
 		else
 			fail "mv failed ($OUT)"
 		fi
@@ -196,7 +196,7 @@ ${assetCases}
 	#done
 	cleanup
 }
-install
+install_binary
 `;
 }
 
