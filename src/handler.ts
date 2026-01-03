@@ -9,6 +9,21 @@ import { renderShellScript, renderTextScript } from "./templates";
 const isTermRe = /^(curl|wget)\//i;
 const errMsgRe = /[^A-Za-z0-9 :/.]/g;
 
+// GitHub username/org: 1-39 chars, alphanumeric or hyphen, cannot start/end with hyphen
+const githubOwnerPattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/;
+// GitHub repo: 1-100 chars, alphanumeric, hyphen, underscore, or dot
+const githubRepoPattern = /^[a-zA-Z0-9._-]{1,100}$/;
+
+function isValidGitHubOwner(name: string): boolean {
+  return githubOwnerPattern.test(name);
+}
+
+function isValidGitHubRepo(name: string): boolean {
+  // Repo names cannot be just dots
+  if (name === "." || name === "..") return false;
+  return githubRepoPattern.test(name);
+}
+
 export function createApp(config: Config): Hono {
   const app = new Hono();
   const client = new GitHubClient(config);
@@ -25,6 +40,16 @@ export function createApp(config: Config): Hono {
     let owner = c.req.param("owner") || "";
     let repo = c.req.param("repo") || "";
     let release = c.req.param("release") || "latest";
+
+    // Validate owner and repo before processing
+    // Strip trailing ! from repo for validation (it's a valid modifier)
+    const repoForValidation = repo.replace(/!+$/, "");
+    if (!isValidGitHubOwner(owner)) {
+      return c.text("Invalid GitHub owner/organization name", 400);
+    }
+    if (!isValidGitHubRepo(repoForValidation)) {
+      return c.text("Invalid GitHub repository name", 400);
+    }
 
     // Determine response type
     let qtype = c.req.query("type") || "";
