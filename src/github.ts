@@ -25,6 +25,7 @@ export class GitHubClient {
   private async fetch<T>(url: string): Promise<T> {
     const headers: Record<string, string> = {
       Accept: "application/vnd.github.v3+json",
+      "User-Agent": "captainsafia/installer",
     };
     if (this.config.token) {
       headers["Authorization"] = `token ${this.config.token}`;
