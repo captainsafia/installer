@@ -11,17 +11,17 @@ import type {
 } from "./types";
 import { getOS, getArch, getFileExt, checksumRe } from "./patterns";
 import { hasM1, assetKey } from "./types";
+import { LRUCache } from "lru-cache";
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in ms
-
-interface CacheEntry {
-  result: QueryResult;
-  timestamp: number;
-}
+const CACHE_MAX_SIZE = 1000; // Maximum number of entries
 
 export class GitHubClient {
   private config: Config;
-  private cache: Map<string, CacheEntry> = new Map();
+  private cache = new LRUCache<string, QueryResult>({
+    max: CACHE_MAX_SIZE,
+    ttl: CACHE_TTL,
+  });
 
   constructor(config: Config) {
     this.config = config;
@@ -54,8 +54,8 @@ export class GitHubClient {
   async execute(q: Query): Promise<QueryResult> {
     const key = this.cacheKey(q);
     const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.result;
+    if (cached) {
+      return cached;
     }
 
     const ts = new Date();
@@ -85,7 +85,7 @@ export class GitHubClient {
       m1Asset: hasM1(assets),
     };
 
-    this.cache.set(key, { result, timestamp: Date.now() });
+    this.cache.set(key, result);
     return result;
   }
 
