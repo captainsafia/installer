@@ -4,21 +4,6 @@ A GitHub release installer service, running on [Node.js](https://nodejs.org) wit
 
 The main branch of this repo is deployed to [i.captainsafia.sh](https://i.captainsafia.sh/).
 
-## Quick Start
-
-```bash
-# Install dependencies
-npm install
-
-# Run development server (with hot reload)
-npm run dev
-
-# Build for production
-npm run build
-
-# Run production server
-npm start
-```
 
 ## Usage
 
@@ -91,6 +76,22 @@ export PATH="$HOME/.lazygit/bin:$PATH"
 
 Use `?move=1` to install to `/usr/local/bin/` instead (may require sudo).
 
+## Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Run development server (with hot reload)
+npm run dev
+
+# Build for production
+npm run build
+
+# Run production server
+npm start
+```
+
 ## Testing
 
 Tests use [Hurl](https://hurl.dev) for HTTP API testing.
@@ -133,7 +134,7 @@ wrangler secret put GITHUB_TOKEN
 Configuration via environment variables:
 
 | Variable | Description | Default |
-|----------|-------------|---------||
+|----------|-------------|---------|
 | `HTTP_HOST` | Host to bind to | `0.0.0.0` |
 | `PORT` | Port to listen on | `3000` |
 | `USER` | Default GitHub user | `captainsafia` |
