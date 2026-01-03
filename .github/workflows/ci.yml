@@ -2,98 +2,41 @@ name: CI
 on:
   pull_request: {}
   push: {}
-permissions: write-all
+
+permissions: read-all
+
 jobs:
-  # ================
-  # BUILD AND TEST JOB
-  # ================
   test:
     name: Build & Test
-    strategy:
-      matrix:
-        # optionally test/build across multiple platforms/Go-versions
-        go-version: ['1.22'] # '1.16', '1.17', '1.18,
-        platform: [ubuntu-latest] # , macos-latest, windows-latest
-    runs-on: ${{ matrix.platform }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go-version }}
-          check-latest: true
-      - name: Build
-        run: go build -v -o /dev/null .
-      - name: Test
-        run: go test -v ./...
-  # ================
-  # RELEASE BINARIES (on push "v*" tag)
-  # ================
-  release_binaries:
-    name: Release Binaries
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: goreleaser
-        uses: docker://goreleaser/goreleaser:latest
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Hurl
+        run: |
+          curl -LO https://github.com/Orange-OpenSource/hurl/releases/download/4.2.0/hurl_4.2.0_amd64.deb
+          sudo dpkg -i hurl_4.2.0_amd64.deb
+
+      - name: Start server
+        run: bun run start &
         env:
-          GITHUB_USER: ${{ github.repository_owner }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: release --config .github/goreleaser.yml
-  # ================
-  # RELEASE DOCKER IMAGES (on push "v*" tag)
-  # ================
-  release_docker:
-    name: Release Docker Images
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-      - name: Build and push
-        uses: docker/build-push-action@v3
-        with:
-          file: .github/Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/386,linux/arm/v7,linux/arm/v6
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-  deploy:
-    name: Deploy to Fly
-    needs: release_docker
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          PORT: 3000
+
+      - name: Wait for server
+        run: |
+          for i in {1..30}; do
+            curl -s http://localhost:3000/healthz && break
+            sleep 1
+          done
+
+      - name: Run Hurl tests
+        run: hurl --test tests/*.hurl

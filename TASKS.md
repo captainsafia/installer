@@ -1,1 +1,0 @@
-- [x] add test for https://github.com/zyedidia/micro, im seeing openbsd match for linux

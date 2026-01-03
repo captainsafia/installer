@@ -1,0 +1,19 @@
+{
+  "name": "installer",
+  "version": "1.0.0",
+  "description": "Quickly install pre-compiled binaries from Github releases",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "test": "hurl --test tests/*.hurl",
+    "test:record": "RECORD=1 hurl --test tests/*.hurl"
+  },
+  "dependencies": {
+    "hono": "4.11.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "5.9.3"
+  }
+}
