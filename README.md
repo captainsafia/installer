@@ -26,7 +26,7 @@ curl https://i.jpillora.com/<query>! | bash
 
 * `user` Github user (defaults to @jpillora, customisable if you [host your own](#host-your-own), searches the web to pick most relevant `user` when `repo` not found)
 * `repo` Github repository belonging to `user` (**required**)
-* `release` Github release name (defaults to the **latest** release)
+* `release` Github release name (defaults to the **latest** release, use `preview` to get the latest prerelease)
 * `!` When provided, downloads binary directly into `/usr/local/bin/` (defaults to working directory)
 
 **Query Params**

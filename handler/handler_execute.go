@@ -85,6 +85,34 @@ func (h *Handler) getAssetsNoCache(q Query) (string, Assets, error) {
 		}
 		release = ghr.TagName // discovered
 		ghas = ghr.Assets
+	} else if release == "preview" {
+		// fetch all releases and find the newest prerelease by published date
+		ghrs := []ghRelease{}
+		if err := h.get(url, &ghrs); err != nil {
+			return release, nil, err
+		}
+		var newestPrerelease *ghRelease
+		var newestTime time.Time
+		for i, ghr := range ghrs {
+			if !ghr.Prerelease {
+				continue
+			}
+			publishedAt, err := time.Parse(time.RFC3339, ghr.PublishedAt)
+			if err != nil {
+				log.Printf("failed to parse published date for %s: %v", ghr.TagName, err)
+				continue
+			}
+			if newestPrerelease == nil || publishedAt.After(newestTime) {
+				newestPrerelease = &ghrs[i]
+				newestTime = publishedAt
+			}
+		}
+		if newestPrerelease == nil {
+			return release, nil, errors.New("no prerelease versions found")
+		}
+		release = newestPrerelease.TagName
+		ghas = newestPrerelease.Assets
+		log.Printf("found newest prerelease: %s (published %s)", release, newestTime.Format(time.RFC3339))
 	} else {
 		ghrs := []ghRelease{}
 		if err := h.get(url, &ghrs); err != nil {
