@@ -20,40 +20,6 @@ npm run build
 npm start
 ```
 
-## Cloudflare Deployment
-
-This app can be deployed to Cloudflare Workers:
-
-```bash
-# Install dependencies (includes wrangler)
-npm install
-
-# Run locally with Cloudflare Workers runtime
-npm run dev:cf
-
-# Deploy to Cloudflare Workers
-npm run deploy
-```
-
-### Setting Secrets
-
-```bash
-# Set your GitHub token for higher API rate limits
-wrangler secret put GITHUB_TOKEN
-```
-
-## Configuration
-
-Configuration via environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------||
-| `HTTP_HOST` | Host to bind to | `0.0.0.0` |
-| `PORT` | Port to listen on | `3000` |
-| `USER` | Default GitHub user | `captainsafia` |
-| `GITHUB_TOKEN` | GitHub API token (for rate limiting and PR artifacts) | - |
-| `GH_TOKEN` | Alias for `GITHUB_TOKEN` | - |
-
 ## Usage
 
 ```sh
@@ -139,3 +105,37 @@ npm test
 # Run specific test
 hurl --test tests/uv.hurl
 ```
+
+## Cloudflare Deployment
+
+This app can be deployed to Cloudflare Workers:
+
+```bash
+# Install dependencies (includes wrangler)
+npm install
+
+# Run locally with Cloudflare Workers runtime
+npm run dev:cf
+
+# Deploy to Cloudflare Workers
+npm run deploy
+```
+
+### Setting Secrets
+
+```bash
+# Set your GitHub token for higher API rate limits
+wrangler secret put GITHUB_TOKEN
+```
+
+## Configuration
+
+Configuration via environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------||
+| `HTTP_HOST` | Host to bind to | `0.0.0.0` |
+| `PORT` | Port to listen on | `3000` |
+| `USER` | Default GitHub user | `captainsafia` |
+| `GITHUB_TOKEN` | GitHub API token (for rate limiting and PR artifacts) | N/A |
+| `GH_TOKEN` | Alias for `GITHUB_TOKEN` | N/A |
