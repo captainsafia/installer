@@ -60,16 +60,16 @@ Configuration via environment variables:
 
 ```sh
 # Install <owner>/<repo> at a specific release
-curl http://localhost:3000/<owner>/<repo>/<release> | sh
+curl https://i.captainsafia.sh/<owner>/<repo>/<release> | sh
 
 # Install latest release
-curl http://localhost:3000/<owner>/<repo> | sh
+curl https://i.captainsafia.sh/<owner>/<repo> | sh
 
 # Install latest prerelease (preview)
-curl http://localhost:3000/<owner>/<repo>/preview | sh
+curl https://i.captainsafia.sh/<owner>/<repo>/preview | sh
 
 # Install to /usr/local/bin/ (with move flag)
-curl "http://localhost:3000/<owner>/<repo>?move=1" | sh
+curl "https://i.captainsafia.sh/<owner>/<repo>?move=1" | sh
 ```
 
 ### Path API
