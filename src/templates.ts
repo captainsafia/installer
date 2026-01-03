@@ -35,10 +35,20 @@ install_binary() {
 	MOVE="${result.moveToPath}"
 	RELEASE="${result.release}" # ${result.resolvedRelease}
 	INSECURE="${result.insecure}"
-	OUT_DIR="${result.moveToPath ? "/usr/local/bin" : "$(pwd)"}"
+	#determine binary name for output directory
+	BIN_NAME="$PROG"
+	if [ -n "$ASPROG" ]; then
+		BIN_NAME="$ASPROG"
+	fi
+	#set output directory: /usr/local/bin if move flag, otherwise ~/.{binaryName}/bin
+	if [ "${result.moveToPath}" = "true" ]; then
+		OUT_DIR="/usr/local/bin"
+	else
+		OUT_DIR="$HOME/.$BIN_NAME/bin"
+	fi
 	GH="https://github.com"
-	#check output dir exists
-	[ ! -d "$OUT_DIR" ] && fail "output directory missing: $OUT_DIR"
+	#create output dir if it doesn't exist
+	mkdir -p "$OUT_DIR" || fail "could not create output directory: $OUT_DIR"
 	#dependency check, assume we are a standard POISX machine
 	which find > /dev/null || fail "find not installed"
 	which xargs > /dev/null || fail "xargs not installed"
@@ -193,6 +203,14 @@ ${assetCases}
 		fi
 	fi
 	echo "${result.moveToPath ? "Installed at" : "Downloaded to"} $DEST"
+	${
+    !result.moveToPath
+      ? `#suggest adding to PATH
+	echo ""
+	echo "To add to your PATH, run:"
+	echo "  export PATH=\\"\\$HOME/.$BIN_NAME/bin:\\$PATH\\""`
+      : ""
+  }
 	#done
 	cleanup
 }

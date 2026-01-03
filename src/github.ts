@@ -28,7 +28,7 @@ export class GitHubClient {
       "User-Agent": "captainsafia/installer",
     };
     if (this.config.token) {
-      headers["Authorization"] = `token ${this.config.token}`;
+      headers["Authorization"] = `Bearer ${this.config.token}`;
     }
 
     const resp = await fetch(url, { headers });

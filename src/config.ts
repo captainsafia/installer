@@ -10,7 +10,7 @@ export interface Config {
 export const defaultConfig: Config = {
   host: "",
   port: 3000,
-  user: "jpillora",
+  user: "captainsafia",
   token: "",
   forceUser: "",
   forceRepo: "",

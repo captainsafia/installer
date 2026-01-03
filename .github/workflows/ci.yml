@@ -33,6 +33,7 @@ jobs:
       - name: Start server
         run: bun run start &
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PORT: 3000
 
       - name: Wait for server

@@ -85,12 +85,23 @@ curl "https://i.captainsafia.sh/<owner>/<repo>?move=1" | sh
 ### Query Parameters
 
 * `?type=` - Force response type: `script`, `json`, `text`
-* `?move=1` - Install to `/usr/local/bin/` instead of current directory
+* `?move=1` - Install to `/usr/local/bin/` instead of `~/.{binary}/bin/`
 * `?insecure=1` - Skip certificate checks
 * `?as=` - Rename the binary
 * `?select=` - Filter assets by name substring
 * `?os=` - Override OS detection
 * `?arch=` - Override architecture detection
+
+### Install Location
+
+By default, binaries are installed to `~/.{binaryName}/bin/{binaryName}`. For example, installing `lazygit` would save to `~/.lazygit/bin/lazygit`.
+
+To add to your PATH:
+```sh
+export PATH="$HOME/.lazygit/bin:$PATH"
+```
+
+Use `?move=1` to install to `/usr/local/bin/` instead (may require sudo).
 
 ## Testing
 
