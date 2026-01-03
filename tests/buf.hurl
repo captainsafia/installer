@@ -1,6 +1,7 @@
 # Test Buf asset resolution
 
-GET http://localhost:3000/bufbuild/buf/v1.60.0?type=json
+GET http://localhost:3000/bufbuild/buf/v1.60.0
+Accept: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "v1.60.0"

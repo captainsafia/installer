@@ -1,7 +1,8 @@
 # Test Piknik asset resolution
 # Tests: macos, dragonflybsd, freebsd, netbsd, openbsd, no arch, i386, arm
 
-GET http://localhost:3000/jedisct1/piknik/0.10.2?type=json
+GET http://localhost:3000/jedisct1/piknik/0.10.2
+Accept: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "0.10.2"

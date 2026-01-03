@@ -109,10 +109,10 @@ Tests use [Hurl](https://hurl.dev) for HTTP API testing.
 
 ```bash
 # Start the server first
-bun run start &
+npm start &
 
 # Run all tests
-bun run test:hurl
+npm test
 
 # Run specific test
 hurl --test tests/uv.hurl

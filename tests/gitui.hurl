@@ -1,7 +1,8 @@
 # Test Gitui asset resolution
 # Tests: mac, x86
 
-GET http://localhost:3000/gitui-org/gitui/v0.27.0?type=json
+GET http://localhost:3000/gitui-org/gitui/v0.27.0
+Accept: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "v0.27.0"

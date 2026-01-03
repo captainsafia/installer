@@ -1,7 +1,8 @@
 # Test Jid asset resolution
 # Tests: 386
 
-GET http://localhost:3000/simeji/jid/v0.7.6?type=json
+GET http://localhost:3000/simeji/jid/v0.7.6
+Accept: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "v0.7.6"

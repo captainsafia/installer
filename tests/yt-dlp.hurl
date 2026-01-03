@@ -1,7 +1,8 @@
 # Test yt-dlp asset resolution
 # Tests: no os, no arch, armv7
 
-GET http://localhost:3000/yt-dlp/yt-dlp/2025.09.05?type=json
+GET http://localhost:3000/yt-dlp/yt-dlp/2025.09.05
+Accept: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "2025.09.05"

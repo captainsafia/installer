@@ -1,6 +1,7 @@
 # Test jpillora/serve asset resolution
 
-GET http://localhost:3000/jpillora/serve?type=json
+GET http://localhost:3000/jpillora/serve
+Accept: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.user" == "jpillora"

@@ -6,7 +6,6 @@ import type { Query } from "./types";
 import { GitHubClient } from "./github";
 import { renderShellScript, renderTextScript } from "./templates";
 
-const isTermRe = /^(curl|wget)\//i;
 const errMsgRe = /[^A-Za-z0-9 :/.]/g;
 
 // GitHub username/org: 1-39 chars, alphanumeric or hyphen, cannot start/end with hyphen
@@ -51,15 +50,16 @@ export function createApp(config: Config): Hono {
       return c.text("Invalid GitHub repository name", 400);
     }
 
-    // Determine response type
-    let qtype = c.req.query("type") || "";
-    if (!qtype) {
-      const ua = c.req.header("User-Agent") || "";
-      if (isTermRe.test(ua)) {
-        qtype = "script";
-      } else {
-        qtype = "text";
-      }
+    // Determine response type via content negotiation
+    const accept = c.req.header("Accept") || "";
+    
+    let qtype: "json" | "script" | "text";
+    if (accept.includes("application/json")) {
+      qtype = "json";
+    } else if (accept.includes("text/plain")) {
+      qtype = "text";
+    } else {
+      qtype = "script";
     }
 
     const showError = (msg: string, code: ContentfulStatusCode) => {
@@ -118,14 +118,13 @@ export function createApp(config: Config): Hono {
 
       switch (qtype) {
         case "json":
-          c.header("Content-Type", "application/json");
           return c.json(result);
         case "script":
-          c.header("Content-Type", "text/x-shellscript");
-          return c.text(renderShellScript(result));
+          return new Response(renderShellScript(result), {
+            headers: { "Content-Type": "text/x-shellscript" },
+          });
         case "text":
         default:
-          c.header("Content-Type", "text/plain");
           return c.text(renderTextScript(result));
       }
     } catch (err) {
