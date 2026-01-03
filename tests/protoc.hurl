@@ -1,6 +1,6 @@
 # Test Protoc asset resolution
 
-GET http://localhost:3000/protocolbuffers/protobuf@v33.1?type=json
+GET http://localhost:3000/protocolbuffers/protobuf/v33.1?type=json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "v33.1"

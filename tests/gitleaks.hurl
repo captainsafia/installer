@@ -1,7 +1,7 @@
 # Test Gitleaks asset resolution
 # Tests: x32, x64, armv6
 
-GET http://localhost:3000/gitleaks/gitleaks@v8.28.0?type=json
+GET http://localhost:3000/gitleaks/gitleaks/v8.28.0?type=json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "v8.28.0"

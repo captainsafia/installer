@@ -1,7 +1,7 @@
 # Test Croc asset resolution
 # Tests: 32bit, 64bit
 
-GET http://localhost:3000/schollz/croc@v10.2.4?type=json
+GET http://localhost:3000/schollz/croc/v10.2.4?type=json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "v10.2.4"

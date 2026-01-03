@@ -4,7 +4,6 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Config } from "./config";
 import type { Query } from "./types";
 import { GitHubClient } from "./github";
-import { splitHalf } from "./patterns";
 import { renderShellScript, renderTextScript } from "./templates";
 
 const isTermRe = /^(curl|wget)\//i;
@@ -18,9 +17,14 @@ export function createApp(config: Config): Hono {
   app.get("/healthz", (c) => c.text("OK"));
   app.get("/favicon.ico", (c) => c.text("OK"));
 
-  // Main handler
-  app.get("/*", async (c: Context) => {
-    const path = c.req.path;
+  // Redirect root to GitHub
+  app.get("/", (c) => c.redirect("https://github.com/captainsafia/installer", 301));
+
+  // Main handler with path parameters: /:owner/:repo/:release?
+  app.get("/:owner/:repo/:release?", async (c: Context) => {
+    let owner = c.req.param("owner") || "";
+    let repo = c.req.param("repo") || "";
+    let release = c.req.param("release") || "latest";
 
     // Determine response type
     let qtype = c.req.query("type") || "";
@@ -39,59 +43,38 @@ export function createApp(config: Config): Hono {
       return c.text(body, code);
     };
 
-    // Parse path
-    let pathStr = path.replace(/^\//, "");
+    // Handle ! suffix for move to path (can be on repo or release)
+    let moveToPath = c.req.query("move") === "1";
+    if (release.endsWith("!")) {
+      moveToPath = true;
+      release = release.replace(/!+$/, "");
+    }
+    if (repo.endsWith("!")) {
+      moveToPath = true;
+      repo = repo.replace(/!+$/, "");
+    }
+
+    // If release was just "!", reset to latest
+    if (!release) {
+      release = "latest";
+    }
 
     // Build query
     const q: Query = {
-      user: "",
-      program: "",
-      release: "",
+      user: owner,
+      program: repo,
+      release: release,
       insecure: c.req.query("insecure") === "1",
       asProgram: c.req.query("as") || "",
       select: c.req.query("select") || "",
       os: c.req.query("os") || "",
       arch: c.req.query("arch") || "",
-      moveToPath: false,
+      moveToPath: moveToPath,
       search: false,
       sudoMove: false,
     };
 
-    // Move to path with !
-    if (pathStr.endsWith("!")) {
-      q.moveToPath = true;
-      pathStr = pathStr.replace(/!+$/, "");
-    }
-    if (c.req.query("move") === "1") {
-      q.moveToPath = true;
-    }
-
-    let rest: string;
-    [q.user, rest] = splitHalf(pathStr, "/");
-    [q.program, q.release] = splitHalf(rest, "@");
-
-    // No program? treat first part as program, use default user
-    if (!q.program) {
-      q.program = q.user;
-      q.user = "";
-      q.search = true;
-    }
-
-    if (!q.release) {
-      q.release = "latest";
-    }
-
-    // micro > nano!
-    if (!q.user && q.program === "micro") {
-      q.user = "zyedidia";
-    }
-
-    // Still no user? use default
-    if (!q.user) {
-      q.user = config.user;
-    }
-
-    // Force user/repo
+    // Force user/repo from config
     if (config.forceUser) {
       q.user = config.forceUser;
     }
@@ -101,9 +84,6 @@ export function createApp(config: Config): Hono {
 
     // Validate query
     if (!q.program) {
-      if (!pathStr) {
-        return c.redirect("https://github.com/captainsafia/installer", 301);
-      }
       console.log(`invalid path: query:`, q);
       return showError("Invalid path", 400);
     }

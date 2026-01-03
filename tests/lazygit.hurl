@@ -1,7 +1,7 @@
 # Test Lazygit asset resolution
 # Tests: 32-bit
 
-GET http://localhost:3000/jesseduffield/lazygit@v0.55.0?type=json
+GET http://localhost:3000/jesseduffield/lazygit/v0.55.0?type=json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "v0.55.0"

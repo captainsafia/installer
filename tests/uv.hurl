@@ -1,7 +1,7 @@
 # Test UV asset resolution
 # Tests: musl over GNU, many architectures, i686, arch long names
 
-GET http://localhost:3000/astral-sh/uv@0.8.17?type=json
+GET http://localhost:3000/astral-sh/uv/0.8.17?type=json
 HTTP 200
 [Asserts]
 jsonpath "$.resolvedRelease" == "0.8.17"

@@ -57,26 +57,33 @@ Configuration via environment variables:
 ## Usage
 
 ```sh
-# Install <user>/<repo> from GitHub
-curl http://localhost:3000/<user>/<repo>@<release>! | bash
+# Install <owner>/<repo> at a specific release
+curl http://localhost:3000/<owner>/<repo>/<release> | sh
 
 # Install latest release
-curl http://localhost:3000/<user>/<repo>! | bash
+curl http://localhost:3000/<owner>/<repo> | sh
 
 # Install latest prerelease (preview)
-curl http://localhost:3000/<user>/<repo>@preview! | bash
+curl http://localhost:3000/<owner>/<repo>/preview | sh
+
+# Install to /usr/local/bin/ (with move flag)
+curl "http://localhost:3000/<owner>/<repo>?move=1" | sh
 ```
 
 ### Path API
 
-* `user` - GitHub user (defaults to configured user)
+```
+/:owner/:repo/:release?
+```
+
+* `owner` - GitHub user or organization (**required**)
 * `repo` - GitHub repository (**required**)
-* `release` - Release tag (defaults to `latest`, use `preview` for latest prerelease)
-* `!` - When provided, installs to `/usr/local/bin/` instead of current directory
+* `release` - Release tag (optional, defaults to `latest`, use `preview` for latest prerelease)
 
 ### Query Parameters
 
-* `?type=` - Force response type: `script`, `json`, `text`, `ruby`
+* `?type=` - Force response type: `script`, `json`, `text`
+* `?move=1` - Install to `/usr/local/bin/` instead of current directory
 * `?insecure=1` - Skip certificate checks
 * `?as=` - Rename the binary
 * `?select=` - Filter assets by name substring
