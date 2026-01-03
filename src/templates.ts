@@ -239,10 +239,39 @@ ${assetCases}
 	echo "${result.moveToPath ? "Installed at" : "Downloaded to"} $DEST"
 	${
     !result.moveToPath
-      ? `#suggest adding to PATH
+      ? `#suggest adding to PATH based on detected shell
 	echo ""
-	echo "To add to your PATH, run:"
-	echo "  export PATH=\\"\\$HOME/.$BIN_NAME/bin:\\$PATH\\""`
+	#detect shell
+	SHELL_NAME=$(basename "$SHELL" 2>/dev/null || echo "sh")
+	case "$SHELL_NAME" in
+		fish)
+			SHELL_CONFIG="$HOME/.config/fish/config.fish"
+			PATH_CMD='set -gx PATH $HOME/.'$BIN_NAME'/bin $PATH'
+			;;
+		zsh)
+			SHELL_CONFIG="$HOME/.zshrc"
+			PATH_CMD='export PATH="$HOME/.'$BIN_NAME'/bin:$PATH"'
+			;;
+		bash)
+			#prefer .bashrc, fall back to .bash_profile
+			if [ -f "$HOME/.bashrc" ]; then
+				SHELL_CONFIG="$HOME/.bashrc"
+			else
+				SHELL_CONFIG="$HOME/.bash_profile"
+			fi
+			PATH_CMD='export PATH="$HOME/.'$BIN_NAME'/bin:$PATH"'
+			;;
+		*)
+			SHELL_CONFIG="your shell config"
+			PATH_CMD='export PATH="$HOME/.'$BIN_NAME'/bin:$PATH"'
+			;;
+	esac
+	echo "To add to your PATH, add this to $SHELL_CONFIG:"
+	echo "  $PATH_CMD"
+	echo ""
+	echo "Then restart your shell or run:"
+	echo "  source $SHELL_CONFIG"
+`
       : ""
   }
 	#done
