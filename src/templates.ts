@@ -3,11 +3,14 @@ import { assetKey } from "./types";
 
 // Shell script template
 export function renderShellScript(result: QueryResult): string {
+  const isArtifact = result.release.startsWith("pr#");
+  
   const assetCases = result.assets
     .map(
       (a) => `	"${a.os}_${a.arch}")
 		URL="${a.url}"
 		FTYPE="${a.type}"
+		ASSET_NAME="${a.name}"
 		;;`
     )
     .join("\n");
@@ -73,10 +76,20 @@ install_binary() {
 	if [ "$DEBUG" = "1" ]; then
 		GET="$GET -v"
 	fi
-	#optional auth to install from private repos
+	#optional auth to install from private repos or artifacts
 	AUTH="\${GITHUB_TOKEN}"
-	if [ -n "$AUTH" ]; then
-		GET="$GET -H 'Authorization: $AUTH'"
+	if [ -z "$AUTH" ]; then
+		AUTH="\${GH_TOKEN}"
+	fi
+	#check if gh CLI is available (preferred for PR artifacts)
+	HAS_GH="false"
+	if which gh > /dev/null 2>&1; then
+		HAS_GH="true"
+	fi
+	#check if this is an artifact download
+	IS_ARTIFACT="${result.release.startsWith("pr#") ? "true" : "false"}"
+	if [ "$IS_ARTIFACT" = "true" ] && [ "$HAS_GH" = "false" ] && [ -z "$AUTH" ]; then
+		fail "Either gh CLI or GITHUB_TOKEN is required to download PR artifacts"
 	fi
 	#find OS
 	OS="${result.os}"
@@ -120,10 +133,19 @@ install_binary() {
 	#choose from asset list
 	URL=""
 	FTYPE=""
+	ASSET_NAME=""
 	case "\${OS}_\${ARCH}" in
 ${assetCases}
 	*) fail "No asset for platform \${OS}-\${ARCH}";;
 	esac
+	#add auth header if we have a token
+	if [ -n "$AUTH" ]; then
+		if echo "$GET" | grep -q "^curl"; then
+			GET="$GET -H 'Authorization: Bearer $AUTH'"
+		else
+			GET="$GET --header='Authorization: Bearer $AUTH'"
+		fi
+	fi
 	#got URL! download it...
 	echo -n "${result.moveToPath ? "Installing" : "Downloading"}"
 	echo -n " $USER/$PROG"
@@ -147,7 +169,19 @@ ${assetCases}
 	#enter tempdir
 	mkdir -p "$TMP_DIR"
 	cd "$TMP_DIR" || fail "cd to temp dir failed"
-	if [ "$FTYPE" = ".gz" ]; then
+	#download the asset
+	if [ "$IS_ARTIFACT" = "true" ] && [ "$HAS_GH" = "true" ]; then
+		#use gh CLI for artifact downloads (handles auth automatically)
+		echo "Using gh CLI to download artifact..."
+		gh run download --repo "$USER/$PROG" --name "$ASSET_NAME" --dir . || fail "gh download failed"
+		#gh downloads artifacts as directories, find any zip files and extract them
+		for zip in *.zip; do
+			if [ -f "$zip" ]; then
+				unzip -o -qq "$zip" || fail "unzip failed"
+				rm "$zip"
+			fi
+		done
+	elif [ "$FTYPE" = ".gz" ]; then
 		which gzip > /dev/null || fail "gzip is not installed"
 		sh -c "$GET $URL" | gzip -d - > "$PROG" || fail "download failed"
 	elif [ "$FTYPE" = ".bz2" ]; then

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Config } from "./config";
-import type { Query } from "./types";
+import type { Query, QueryResult } from "./types";
 import { GitHubClient } from "./github";
 import { renderShellScript, renderTextScript } from "./templates";
 
@@ -23,6 +23,63 @@ function isValidGitHubRepo(name: string): boolean {
   return githubRepoPattern.test(name);
 }
 
+type ResponseType = "json" | "script" | "text";
+
+/** Determine response type from Accept header */
+function getResponseType(c: Context): ResponseType {
+  const accept = c.req.header("Accept") || "";
+  if (accept.includes("application/json")) {
+    return "json";
+  } else if (accept.includes("text/plain")) {
+    return "text";
+  }
+  return "script";
+}
+
+/** Create an error response based on response type */
+function createErrorResponse(
+  c: Context,
+  msg: string,
+  code: ContentfulStatusCode,
+  responseType: ResponseType
+): Response {
+  const cleaned = msg.replace(errMsgRe, "");
+  const body = responseType === "script" ? `echo '${cleaned}'` : cleaned;
+  return c.text(body, code);
+}
+
+/** Create a success response based on response type */
+function createSuccessResponse(
+  c: Context,
+  result: QueryResult,
+  responseType: ResponseType
+): Response {
+  switch (responseType) {
+    case "json":
+      return c.json(result);
+    case "script":
+      return new Response(renderShellScript(result), {
+        headers: { "Content-Type": "text/x-shellscript" },
+      });
+    case "text":
+    default:
+      return c.text(renderTextScript(result));
+  }
+}
+
+/** Build common query parameters from request */
+function buildQueryParams(c: Context): Partial<Query> {
+  return {
+    insecure: c.req.query("insecure") === "1",
+    asProgram: c.req.query("as") || "",
+    select: c.req.query("select") || "",
+    os: c.req.query("os") || "",
+    arch: c.req.query("arch") || "",
+    search: false,
+    sudoMove: false,
+  };
+}
+
 export function createApp(config: Config): Hono {
   const app = new Hono();
   const client = new GitHubClient(config);
@@ -32,13 +89,54 @@ export function createApp(config: Config): Hono {
   app.get("/favicon.ico", (c) => c.text("OK"));
 
   // Redirect root to GitHub
-  app.get("/", (c) => c.redirect("https://github.com/captainsafia/installer", 301));
+  app.get("/", (c) =>
+    c.redirect("https://github.com/captainsafia/installer", 301)
+  );
+
+  // PR artifacts handler: /:owner/:repo/pr/:prNumber
+  app.get("/:owner/:repo/pr/:prNumber", async (c: Context) => {
+    const owner = c.req.param("owner") || "";
+    const repo = c.req.param("repo") || "";
+    const prNumberStr = c.req.param("prNumber") || "";
+    const responseType = getResponseType(c);
+
+    // Validate owner and repo
+    if (!isValidGitHubOwner(owner)) {
+      return c.text("Invalid GitHub owner/organization name", 400);
+    }
+    if (!isValidGitHubRepo(repo)) {
+      return c.text("Invalid GitHub repository name", 400);
+    }
+
+    // Validate PR number
+    const prNumber = parseInt(prNumberStr, 10);
+    if (isNaN(prNumber) || prNumber <= 0) {
+      return c.text("Invalid PR number", 400);
+    }
+
+    const q: Query = {
+      user: owner,
+      program: repo,
+      release: `pr#${prNumber}`,
+      moveToPath: c.req.query("move") === "1",
+      ...buildQueryParams(c),
+    };
+
+    try {
+      const result = await client.execute(q);
+      return createSuccessResponse(c, result, responseType);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return createErrorResponse(c, msg, 502, responseType);
+    }
+  });
 
   // Main handler with path parameters: /:owner/:repo/:release?
   app.get("/:owner/:repo/:release?", async (c: Context) => {
-    let owner = c.req.param("owner") || "";
+    const owner = c.req.param("owner") || "";
     let repo = c.req.param("repo") || "";
     let release = c.req.param("release") || "latest";
+    const responseType = getResponseType(c);
 
     // Validate owner and repo before processing
     // Strip trailing ! from repo for validation (it's a valid modifier)
@@ -49,24 +147,6 @@ export function createApp(config: Config): Hono {
     if (!isValidGitHubRepo(repoForValidation)) {
       return c.text("Invalid GitHub repository name", 400);
     }
-
-    // Determine response type via content negotiation
-    const accept = c.req.header("Accept") || "";
-    
-    let qtype: "json" | "script" | "text";
-    if (accept.includes("application/json")) {
-      qtype = "json";
-    } else if (accept.includes("text/plain")) {
-      qtype = "text";
-    } else {
-      qtype = "script";
-    }
-
-    const showError = (msg: string, code: ContentfulStatusCode) => {
-      const cleaned = msg.replace(errMsgRe, "");
-      const body = qtype === "script" ? `echo '${cleaned}'` : cleaned;
-      return c.text(body, code);
-    };
 
     // Handle ! suffix for move to path (can be on repo or release)
     let moveToPath = c.req.query("move") === "1";
@@ -84,52 +164,20 @@ export function createApp(config: Config): Hono {
       release = "latest";
     }
 
-    // Build query
     const q: Query = {
       user: owner,
       program: repo,
       release: release,
-      insecure: c.req.query("insecure") === "1",
-      asProgram: c.req.query("as") || "",
-      select: c.req.query("select") || "",
-      os: c.req.query("os") || "",
-      arch: c.req.query("arch") || "",
       moveToPath: moveToPath,
-      search: false,
-      sudoMove: false,
+      ...buildQueryParams(c),
     };
-
-    // Force user/repo from config
-    if (config.forceUser) {
-      q.user = config.forceUser;
-    }
-    if (config.forceRepo) {
-      q.program = config.forceRepo;
-    }
-
-    // Validate query
-    if (!q.program) {
-      console.log(`invalid path: query:`, q);
-      return showError("Invalid path", 400);
-    }
 
     try {
       const result = await client.execute(q);
-
-      switch (qtype) {
-        case "json":
-          return c.json(result);
-        case "script":
-          return new Response(renderShellScript(result), {
-            headers: { "Content-Type": "text/x-shellscript" },
-          });
-        case "text":
-        default:
-          return c.text(renderTextScript(result));
-      }
+      return createSuccessResponse(c, result, responseType);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      return showError(msg, 502);
+      return createErrorResponse(c, msg, 502, responseType);
     }
   });
 

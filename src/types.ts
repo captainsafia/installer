@@ -96,3 +96,59 @@ export interface GHRelease {
   url: string;
   zipball_url: string;
 }
+
+// GitHub workflow artifacts API types
+export interface GHArtifact {
+  id: number;
+  node_id: string;
+  name: string;
+  size_in_bytes: number;
+  url: string;
+  archive_download_url: string;
+  expired: boolean;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+  workflow_run?: {
+    id: number;
+    repository_id: number;
+    head_repository_id: number;
+    head_branch: string;
+    head_sha: string;
+  };
+}
+
+export interface GHArtifactsResponse {
+  total_count: number;
+  artifacts: GHArtifact[];
+}
+
+export interface GHWorkflowRun {
+  id: number;
+  name: string;
+  head_branch: string;
+  head_sha: string;
+  status: string;
+  conclusion: string | null;
+  event: string;
+  pull_requests: { number: number }[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GHWorkflowRunsResponse {
+  total_count: number;
+  workflow_runs: GHWorkflowRun[];
+}
+
+export interface GHPullRequest {
+  number: number;
+  head: {
+    ref: string;
+    sha: string;
+  };
+  base: {
+    ref: string;
+  };
+}
+

@@ -1,5 +1,14 @@
 import type { Config } from "./config";
-import type { Query, Asset, QueryResult, GHAsset, GHRelease } from "./types";
+import type {
+  Query,
+  Asset,
+  QueryResult,
+  GHAsset,
+  GHRelease,
+  GHArtifactsResponse,
+  GHWorkflowRunsResponse,
+  GHPullRequest,
+} from "./types";
 import { getOS, getArch, getFileExt, checksumRe } from "./patterns";
 import { hasM1, assetKey } from "./types";
 
@@ -50,7 +59,18 @@ export class GitHubClient {
     }
 
     const ts = new Date();
-    let { release, assets } = await this.getAssetsNoCache(q);
+    
+    // Check if this is a PR artifact request
+    const prMatch = q.release.match(/^pr#(\d+)$/);
+    let release: string;
+    let assets: Asset[];
+    
+    if (prMatch) {
+      const prNumber = parseInt(prMatch[1], 10);
+      ({ release, assets } = await this.getArtifactsForPR(q, prNumber));
+    } else {
+      ({ release, assets } = await this.getAssetsNoCache(q));
+    }
 
     if (q.release === "" && release !== "") {
       console.log(`detected release: ${release}`);
@@ -246,6 +266,122 @@ export class GitHubClient {
       console.log(`including asset: ${a.name} (${assetKey(a)})`);
     }
 
+    return { release, assets };
+  }
+
+  /**
+   * Get assets from workflow artifacts for a given PR number.
+   * This fetches the PR details to get the head branch, then finds
+   * the most recent successful workflow run for that branch.
+   */
+  async getArtifactsForPR(
+    q: Query,
+    prNumber: number
+  ): Promise<{ release: string; assets: Asset[] }> {
+    const user = q.user;
+    const repo = q.program;
+
+    console.log(`fetching workflow artifacts for ${user}/${repo} PR #${prNumber}`);
+
+    // Get PR details to find the head branch
+    const prUrl = `https://api.github.com/repos/${user}/${repo}/pulls/${prNumber}`;
+    const pr = await this.fetch<GHPullRequest>(prUrl);
+    const headBranch = pr.head.ref;
+
+    console.log(`PR #${prNumber} head branch: ${headBranch}`);
+
+    // Find workflow runs for the head branch
+    const runsUrl = `https://api.github.com/repos/${user}/${repo}/actions/runs?branch=${encodeURIComponent(headBranch)}&status=completed&per_page=100`;
+    const runsResp = await this.fetch<GHWorkflowRunsResponse>(runsUrl);
+
+    // Find runs that succeeded
+    const successfulRuns = runsResp.workflow_runs.filter(
+      (run) => run.conclusion === "success"
+    );
+
+    if (successfulRuns.length === 0) {
+      throw new Error(`no successful workflow runs found for branch '${headBranch}'`);
+    }
+
+    // Sort by created_at descending to get the most recent first
+    successfulRuns.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    // Iterate through successful runs to find one with usable artifacts
+    // (there may be multiple workflows, e.g., "Build", "Test", "CI")
+    let assets: Asset[] = [];
+    let selectedRun: typeof successfulRuns[0] | null = null;
+
+    for (const run of successfulRuns) {
+      console.log(`checking workflow run ${run.id} (${run.name}) for artifacts...`);
+
+      // Fetch artifacts for this run
+      const artifactsUrl = `https://api.github.com/repos/${user}/${repo}/actions/runs/${run.id}/artifacts`;
+      const artifactsResp = await this.fetch<GHArtifactsResponse>(artifactsUrl);
+
+      if (artifactsResp.artifacts.length === 0) {
+        console.log(`  no artifacts found, trying next run...`);
+        continue;
+      }
+
+      // Filter out expired artifacts
+      const validArtifacts = artifactsResp.artifacts.filter((a) => !a.expired);
+      if (validArtifacts.length === 0) {
+        console.log(`  all artifacts expired, trying next run...`);
+        continue;
+      }
+
+      // Convert artifacts to assets
+      const runAssets: Asset[] = [];
+      for (const artifact of validArtifacts) {
+        // Artifacts are always zip files
+        const os = getOS(artifact.name);
+        const arch = getArch(artifact.name);
+
+        // Skip Windows artifacts
+        if (os === "windows") {
+          console.log(`  skipping windows artifact: ${artifact.name}`);
+          continue;
+        }
+
+        const asset: Asset = {
+          name: artifact.name,
+          os: os || "linux", // Default to linux if unknown
+          arch: arch || "amd64", // Default to amd64 if unknown
+          url: artifact.archive_download_url,
+          type: ".zip",
+          sha256: "",
+        };
+
+        runAssets.push(asset);
+      }
+
+      if (runAssets.length > 0) {
+        // Found a run with usable artifacts
+        selectedRun = run;
+        assets = runAssets;
+        break;
+      }
+
+      console.log(`  no compatible artifacts, trying next run...`);
+    }
+
+    if (!selectedRun || assets.length === 0) {
+      throw new Error(`no workflow runs with compatible artifacts found for branch '${headBranch}'`);
+    }
+
+    console.log(
+      `using workflow run ${selectedRun.id} (${selectedRun.name}) with ${assets.length} artifact(s)`
+    );
+
+    for (const asset of assets) {
+      console.log(`including artifact: ${asset.name} (${assetKey(asset)})`);
+    }
+
+    // Use PR number as the "release" identifier
+    const release = `pr#${prNumber}`;
     return { release, assets };
   }
 

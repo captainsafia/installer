@@ -47,14 +47,12 @@ wrangler secret put GITHUB_TOKEN
 Configuration via environment variables:
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+|----------|-------------|---------||
 | `HTTP_HOST` | Host to bind to | `0.0.0.0` |
 | `PORT` | Port to listen on | `3000` |
-| `USER` | Default GitHub user | `jpillora` |
-| `GITHUB_TOKEN` | GitHub API token (for rate limiting) | - |
+| `USER` | Default GitHub user | `captainsafia` |
+| `GITHUB_TOKEN` | GitHub API token (for rate limiting and PR artifacts) | - |
 | `GH_TOKEN` | Alias for `GITHUB_TOKEN` | - |
-| `FORCE_USER` | Lock installer to a single user | - |
-| `FORCE_REPO` | Lock installer to a single repo | - |
 
 ## Usage
 
@@ -74,6 +72,8 @@ curl "https://i.captainsafia.sh/<owner>/<repo>?move=1" | sh
 
 ### Path API
 
+#### Releases
+
 ```
 /:owner/:repo/:release?
 ```
@@ -82,9 +82,31 @@ curl "https://i.captainsafia.sh/<owner>/<repo>?move=1" | sh
 * `repo` - GitHub repository (**required**)
 * `release` - Release tag (optional, defaults to `latest`, use `preview` for latest prerelease)
 
+#### PR Artifacts
+
+```
+/:owner/:repo/pr/:prNumber
+```
+
+Download binaries from GitHub Actions workflow artifacts for a pull request. Requires authentication via `gh` CLI or `GITHUB_TOKEN`.
+
+```sh
+# Install from PR #123
+curl https://i.captainsafia.sh/<owner>/<repo>/pr/123 | sh
+```
+
+### Content Negotiation
+
+The API returns different formats based on the `Accept` header:
+
+| Accept Header | Response |
+|---------------|----------|
+| `*/*` (default) | Shell script (`text/x-shellscript`) |
+| `text/plain` | Plain text install instructions |
+| `application/json` | JSON with asset details |
+
 ### Query Parameters
 
-* `?type=` - Force response type: `script`, `json`, `text`
 * `?move=1` - Install to `/usr/local/bin/` instead of `~/.{binary}/bin/`
 * `?insecure=1` - Skip certificate checks
 * `?as=` - Rename the binary

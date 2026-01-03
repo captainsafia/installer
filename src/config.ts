@@ -3,8 +3,6 @@ export interface Config {
   port: number;
   user: string;
   token: string;
-  forceUser: string;
-  forceRepo: string;
 }
 
 export const defaultConfig: Config = {
@@ -12,8 +10,6 @@ export const defaultConfig: Config = {
   port: 3000,
   user: "captainsafia",
   token: "",
-  forceUser: "",
-  forceRepo: "",
 };
 
 export function loadConfigFromEnv(): Config {
@@ -22,7 +18,5 @@ export function loadConfigFromEnv(): Config {
     port: parseInt(process.env.PORT || String(defaultConfig.port), 10),
     user: process.env.USER || defaultConfig.user,
     token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || defaultConfig.token,
-    forceUser: process.env.FORCE_USER || defaultConfig.forceUser,
-    forceRepo: process.env.FORCE_REPO || defaultConfig.forceRepo,
   };
 }
