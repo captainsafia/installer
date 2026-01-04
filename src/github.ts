@@ -351,10 +351,14 @@ export class GitHubClient {
           continue;
         }
 
+        // Default OS to linux, default arch based on OS (arm64 for macOS, amd64 otherwise)
+        const resolvedOs = os || "linux";
+        const resolvedArch = arch || (resolvedOs === "darwin" ? "arm64" : "amd64");
+
         const asset: Asset = {
           name: artifact.name,
-          os: os || "linux", // Default to linux if unknown
-          arch: arch || "amd64", // Default to amd64 if unknown
+          os: resolvedOs,
+          arch: resolvedArch,
           url: artifact.archive_download_url,
           type: ".zip",
           sha256: "",
