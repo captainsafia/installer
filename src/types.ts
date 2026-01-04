@@ -126,6 +126,7 @@ export interface GHArtifactsResponse {
 export interface GHWorkflowRun {
   id: number;
   name: string;
+  path: string;
   head_branch: string;
   head_sha: string;
   status: string;

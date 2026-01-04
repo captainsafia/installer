@@ -41,6 +41,8 @@ curl "https://i.captainsafia.sh/<owner>/<repo>?move=1" | sh
 
 Download binaries from GitHub Actions workflow artifacts for a pull request. Requires authentication via `gh` CLI or `GITHUB_TOKEN`.
 
+**Note:** Only artifacts from workflows with `pr-publish` in the filename (e.g., `.github/workflows/pr-publish.yml`) are resolved. The workflow must be triggered by a `pull_request` event.
+
 ```sh
 # Install from PR #123
 curl https://i.captainsafia.sh/<owner>/<repo>/pr/123 | sh

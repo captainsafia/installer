@@ -294,13 +294,18 @@ export class GitHubClient {
     const runsUrl = `https://api.github.com/repos/${user}/${repo}/actions/runs?branch=${encodeURIComponent(headBranch)}&status=completed&per_page=100`;
     const runsResp = await this.fetch<GHWorkflowRunsResponse>(runsUrl);
 
-    // Find runs that succeeded
+    // Find runs that succeeded, triggered by pull_request event, and have pr-publish in path
+    // Path format: '.github/workflows/pr-publish.yml'
+    const prPublishPattern = /pr[\s_-]?publish/i;
     const successfulRuns = runsResp.workflow_runs.filter(
-      (run) => run.conclusion === "success"
+      (run) =>
+        run.conclusion === "success" &&
+        run.event === "pull_request" &&
+        prPublishPattern.test(run.path)
     );
 
     if (successfulRuns.length === 0) {
-      throw new Error(`no successful workflow runs found for branch '${headBranch}'`);
+      throw new Error(`no successful 'pr-publish' workflow runs found for branch '${headBranch}'`);
     }
 
     // Sort by created_at descending to get the most recent first
