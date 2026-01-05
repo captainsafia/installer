@@ -181,6 +181,41 @@ ${assetCases}
 				rm "$zip"
 			fi
 		done
+	elif [ "$HAS_GH" = "true" ]; then
+		echo "Using gh CLI to download release..."
+		GH_RELEASE="$RELEASE"
+		if [ -z "$GH_RELEASE" ] || [ "$GH_RELEASE" = "latest" ]; then
+			GH_RELEASE="latest"
+		fi
+		gh release download "$GH_RELEASE" --repo "$USER/$PROG" --pattern "$ASSET_NAME" --dir . || fail "gh download failed"
+		#extract based on file type
+		if [ "$FTYPE" = ".gz" ]; then
+			which gzip > /dev/null || fail "gzip is not installed"
+			gzip -d "$ASSET_NAME" || fail "extraction failed"
+		elif [ "$FTYPE" = ".bz2" ]; then
+			which bzip2 > /dev/null || fail "bzip2 is not installed"
+			bzip2 -d "$ASSET_NAME" || fail "extraction failed"
+		elif [ "$FTYPE" = ".tar.bz" ] || [ "$FTYPE" = ".tar.bz2" ]; then
+			which tar > /dev/null || fail "tar is not installed"
+			which bzip2 > /dev/null || fail "bzip2 is not installed"
+			tar jxf "$ASSET_NAME" || fail "extraction failed"
+			rm "$ASSET_NAME"
+		elif [ "$FTYPE" = ".tar.gz" ] || [ "$FTYPE" = ".tgz" ]; then
+			which tar > /dev/null || fail "tar is not installed"
+			which gzip > /dev/null || fail "gzip is not installed"
+			tar zxf "$ASSET_NAME" || fail "extraction failed"
+			rm "$ASSET_NAME"
+		elif [ "$FTYPE" = ".tar.xz" ] || [ "$FTYPE" = ".txz" ]; then
+			which tar > /dev/null || fail "tar is not installed"
+			which xz > /dev/null || fail "xz is not installed"
+			tar Jxf "$ASSET_NAME" || fail "extraction failed"
+			rm "$ASSET_NAME"
+		elif [ "$FTYPE" = ".zip" ]; then
+			which unzip > /dev/null || fail "unzip is not installed"
+			unzip -o -qq "$ASSET_NAME" || fail "unzip failed"
+			rm "$ASSET_NAME"
+		fi
+		#.bin files don't need extraction
 	elif [ "$FTYPE" = ".gz" ]; then
 		which gzip > /dev/null || fail "gzip is not installed"
 		sh -c "$GET $URL" | gzip -d - > "$PROG" || fail "download failed"
