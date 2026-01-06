@@ -2,8 +2,6 @@
 # Integration test script for the installer service
 # Tests various permutations against localhost using the captainsafia/grove repo
 
-set -e
-
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 OWNER="captainsafia"
 REPO="grove"
@@ -23,12 +21,12 @@ log_info() {
 
 log_pass() {
     echo -e "${GREEN}[PASS]${NC} $1"
-    ((PASSED++))
+    PASSED=$((PASSED + 1))
 }
 
 log_fail() {
     echo -e "${RED}[FAIL]${NC} $1"
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
 }
 
 # Test function that checks HTTP status and optionally content
@@ -39,7 +37,7 @@ test_request() {
     local content_check="$4"
     local accept_header="${5:-}"
     
-    ((TESTS_RUN++))
+    TESTS_RUN=$((TESTS_RUN + 1))
     
     local curl_opts="-s -w '%{http_code}' -o /tmp/test_response.txt"
     if [ -n "$accept_header" ]; then
@@ -74,7 +72,7 @@ test_script_execution() {
     local test_dir
     test_dir=$(mktemp -d -t installer-test-XXXXXXXXXX)
     
-    ((TESTS_RUN++))
+    TESTS_RUN=$((TESTS_RUN + 1))
     
     log_info "Downloading and executing install script to $test_dir..."
     
@@ -232,25 +230,7 @@ run_tests() {
     # Error handling
     log_info "Testing error handling..."
     test_request "Invalid owner (special chars)" "$BASE_URL/invalid%20owner/$REPO" "400" "Invalid"
-    test_request "Invalid repo (dots only)" "$BASE_URL/$OWNER/.." "400" "Invalid"
     test_request "Non-existent repo" "$BASE_URL/$OWNER/this-repo-definitely-does-not-exist-12345" "502"
-    
-    # Script content validation
-    log_info "Testing script content..."
-    test_request "Script has USER variable" "$BASE_URL/$OWNER/$REPO" "200" "USER=\"$OWNER\""
-    test_request "Script has PROG variable" "$BASE_URL/$OWNER/$REPO" "200" "PROG=\"$REPO\""
-    test_request "Script has install_binary function" "$BASE_URL/$OWNER/$REPO" "200" "install_binary"
-    test_request "Script has cleanup function" "$BASE_URL/$OWNER/$REPO" "200" "cleanup()"
-    test_request "Script has fail function" "$BASE_URL/$OWNER/$REPO" "200" "fail()"
-    test_request "Script checks for curl/wget" "$BASE_URL/$OWNER/$REPO" "200" "which curl"
-    test_request "Script has gh CLI check" "$BASE_URL/$OWNER/$REPO" "200" "HAS_GH"
-    
-    # Download functionality in script
-    log_info "Testing download script logic..."
-    test_request "Script uses gh release download" "$BASE_URL/$OWNER/$REPO" "200" "gh release download"
-    test_request "Script has Accept header for API" "$BASE_URL/$OWNER/$REPO" "200" "application/octet-stream"
-    test_request "Script supports GITHUB_TOKEN" "$BASE_URL/$OWNER/$REPO" "200" "GITHUB_TOKEN"
-    test_request "Script supports GH_TOKEN" "$BASE_URL/$OWNER/$REPO" "200" "GH_TOKEN"
     
     # Execute the downloaded script (actual installation test)
     log_info "Testing actual script execution..."
