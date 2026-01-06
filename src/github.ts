@@ -151,8 +151,9 @@ export class GitHubClient {
     let foundLinuxAMD64 = false;
 
     for (const ga of ghas) {
-      const url = ga.browser_download_url;
-      let fext = getFileExt(url);
+      // Use the API URL which supports Accept: application/octet-stream for downloads
+      const url = ga.url;
+      let fext = getFileExt(ga.name);
       if (fext === "" && ga.size > 1024 * 1024) {
         fext = ".bin"; // +1MB binary
       }
@@ -398,14 +399,22 @@ export class GitHubClient {
     let url = "";
     for (const ga of ghas) {
       if (this.isChecksumFile(ga)) {
-        url = ga.browser_download_url;
+        // Use API URL with Accept header for binary download
+        url = ga.url;
         break;
       }
     }
     if (!url) return {};
 
     try {
-      const resp = await fetch(url);
+      const headers: Record<string, string> = {
+        Accept: "application/octet-stream",
+        "User-Agent": "installer",
+      };
+      if (this.token) {
+        headers["Authorization"] = `token ${this.token}`;
+      }
+      const resp = await fetch(url, { headers, redirect: "follow" });
       if (!resp.ok) return {};
       const text = await resp.text();
       const index: Record<string, string> = {};

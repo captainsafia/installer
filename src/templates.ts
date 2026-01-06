@@ -141,10 +141,16 @@ ${assetCases}
 	#add auth header if we have a token
 	if [ -n "$AUTH" ]; then
 		if echo "$GET" | grep -q "^curl"; then
-			GET="$GET -H 'Authorization: Bearer $AUTH'"
+			GET="$GET -H 'Authorization: token $AUTH'"
 		else
-			GET="$GET --header='Authorization: Bearer $AUTH'"
+			GET="$GET --header='Authorization: token $AUTH'"
 		fi
+	fi
+	#add Accept header for GitHub API asset downloads (required for api.github.com URLs)
+	if echo "$GET" | grep -q "^curl"; then
+		GET="$GET -H 'Accept: application/octet-stream'"
+	else
+		GET="$GET --header='Accept: application/octet-stream'"
 	fi
 	#got URL! download it...
 	echo -n "${result.moveToPath ? "Installing" : "Downloading"}"
