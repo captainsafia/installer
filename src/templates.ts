@@ -508,8 +508,25 @@ ${assetCases}
                         ForEach-Object { $_.FullName }
                 }
             }
+            ".gz" {
+                # Decompress gzip (single file, not tar)
+                # Use .NET GZipStream for decompression
+                $DecompressedFile = Join-Path $TempDir "$BinaryName.exe"
+                $inStream = [System.IO.File]::OpenRead($TempFile)
+                $gzStream = New-Object System.IO.Compression.GZipStream($inStream, [System.IO.Compression.CompressionMode]::Decompress)
+                $outStream = [System.IO.File]::Create($DecompressedFile)
+                $gzStream.CopyTo($outStream)
+                $outStream.Close()
+                $gzStream.Close()
+                $inStream.Close()
+                $BinaryPath = $DecompressedFile
+            }
+            ".bin" {
+                # Direct binary file
+                $BinaryPath = $TempFile
+            }
             default {
-                # Assume it's a binary
+                # Assume it's an executable
                 $BinaryPath = $TempFile
             }
         }
