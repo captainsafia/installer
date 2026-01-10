@@ -4,7 +4,11 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Config } from "./config";
 import type { Query, QueryResult } from "./types";
 import { GitHubClient } from "./github";
-import { renderShellScript, renderTextScript } from "./templates";
+import {
+  renderShellScript,
+  renderTextScript,
+  renderPowerShellScript,
+} from "./templates";
 
 const errMsgRe = /[^A-Za-z0-9 :/.]/g;
 
@@ -23,16 +27,30 @@ function isValidGitHubRepo(name: string): boolean {
   return githubRepoPattern.test(name);
 }
 
-type ResponseType = "json" | "script" | "text";
+type ResponseType = "json" | "script" | "powershell" | "text";
 
-/** Determine response type from Accept header */
+/** Determine response type from Accept header and query parameters */
 function getResponseType(c: Context): ResponseType {
+  // Check for explicit type query parameter first
+  const typeParam = c.req.query("type");
+  if (typeParam === "powershell" || typeParam === "ps1") {
+    return "powershell";
+  }
+
+  // Check Accept header
   const accept = c.req.header("Accept") || "";
   if (accept.includes("application/json")) {
     return "json";
   } else if (accept.includes("text/plain")) {
     return "text";
   }
+
+  // Check User-Agent for PowerShell
+  const userAgent = c.req.header("User-Agent") || "";
+  if (userAgent.includes("PowerShell")) {
+    return "powershell";
+  }
+
   return "script";
 }
 
@@ -44,7 +62,14 @@ function createErrorResponse(
   responseType: ResponseType
 ): Response {
   const cleaned = msg.replace(errMsgRe, "");
-  const body = responseType === "script" ? `echo '${cleaned}'` : cleaned;
+  let body: string;
+  if (responseType === "script") {
+    body = `echo '${cleaned}'`;
+  } else if (responseType === "powershell") {
+    body = `Write-Host "${cleaned}" -ForegroundColor Red; exit 1`;
+  } else {
+    body = cleaned;
+  }
   return c.text(body, code);
 }
 
@@ -57,6 +82,10 @@ function createSuccessResponse(
   switch (responseType) {
     case "json":
       return c.json(result);
+    case "powershell":
+      return new Response(renderPowerShellScript(result), {
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
     case "script":
       return new Response(renderShellScript(result), {
         headers: { "Content-Type": "text/x-shellscript" },
