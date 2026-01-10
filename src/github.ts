@@ -160,6 +160,7 @@ export class GitHubClient {
 
       const validExts = [
         ".bin",
+        ".exe",
         ".zip",
         ".tar.bz",
         ".tar.bz2",
@@ -179,11 +180,6 @@ export class GitHubClient {
 
       let os = getOS(ga.name);
       let arch = getArch(ga.name);
-
-      if (os === "windows") {
-        console.log(`fetched asset is for windows: ${ga.name}`);
-        continue;
-      }
 
       if (os === "linux" && arch === "amd64") {
         foundLinuxAMD64 = true;
@@ -345,12 +341,6 @@ export class GitHubClient {
         // Artifacts are always zip files
         const os = getOS(artifact.name);
         const arch = getArch(artifact.name);
-
-        // Skip Windows artifacts
-        if (os === "windows") {
-          console.log(`  skipping windows artifact: ${artifact.name}`);
-          continue;
-        }
 
         // Default OS to linux, default arch based on OS (arm64 for macOS, amd64 otherwise)
         const resolvedOs = os || "linux";
