@@ -66,8 +66,17 @@ HTTP 200
 body contains "# PowerShell installer"
 
 # Error response should be PowerShell-formatted when no Windows assets
-GET http://localhost:3000/jpillora/serve?type=powershell
+# captainsafia/grove only has Linux/macOS binaries
+GET http://localhost:3000/captainsafia/grove?type=powershell
 HTTP 200
 [Asserts]
 body contains "Write-Host"
 body contains "No Windows assets available"
+
+# .gz file type should be handled (jpillora/serve uses .gz for Windows)
+GET http://localhost:3000/jpillora/serve?type=powershell
+HTTP 200
+[Asserts]
+body contains "# PowerShell installer"
+body contains ".gz"
+body contains "GZipStream"
