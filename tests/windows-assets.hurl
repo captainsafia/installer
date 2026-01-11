@@ -23,11 +23,11 @@ body contains "Windows"
 body contains ".zip"
 
 # UV has Windows assets (zip format)
-GET http://localhost:3000/astral-sh/uv/0.8.17
+GET http://localhost:3000/astral-sh/uv/0.9.24
 Accept: application/json
 HTTP 200
 [Asserts]
-jsonpath "$.resolvedRelease" == "0.8.17"
+jsonpath "$.resolvedRelease" == "0.9.24"
 body contains "windows"
 
 # Lazygit has Windows assets
@@ -35,4 +35,4 @@ GET http://localhost:3000/jesseduffield/lazygit/v0.55.0
 Accept: application/json
 HTTP 200
 [Asserts]
-body contains "Windows"
+body contains "windows"
