@@ -81,12 +81,20 @@ body contains "# PowerShell installer"
 body contains "v2.67.0"
 
 # Error response should be PowerShell-formatted when no Windows assets
-# captainsafia/grove only has Linux/macOS binaries
+# captainsafia/grove latest release only has Linux/macOS binaries
 GET http://localhost:3000/captainsafia/grove.ps1
 HTTP 200
 [Asserts]
 body contains "Write-Host"
 body contains "No Windows assets available"
+
+# captainsafia/grove preview release has Windows .exe asset
+GET http://localhost:3000/captainsafia/grove/v1.3.0-preview.4d848d6.ps1
+HTTP 200
+[Asserts]
+body contains "# PowerShell installer"
+body contains "grove-windows-x64.exe"
+body contains ".exe"
 
 # .gz file type should be handled (jpillora/serve uses .gz for Windows)
 GET http://localhost:3000/jpillora/serve.ps1
