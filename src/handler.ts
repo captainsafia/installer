@@ -29,9 +29,31 @@ function isValidGitHubRepo(name: string): boolean {
 
 type ResponseType = "json" | "script" | "powershell" | "text";
 
-/** Determine response type from Accept header and query parameters */
-function getResponseType(c: Context): ResponseType {
-  // Check for explicit type query parameter first
+// Extension to response type mapping
+const extensionTypeMap: Record<string, ResponseType> = {
+  ".ps1": "powershell",
+  ".sh": "script",
+  ".json": "json",
+  ".txt": "text",
+};
+
+/** Extract extension and base name from a path segment (e.g., "v1.0.0.ps1" -> ["v1.0.0", ".ps1"]) */
+function extractExtension(s: string): [string, string] {
+  const match = s.match(/^(.+?)(\.(?:ps1|sh|json|txt))$/i);
+  if (match) {
+    return [match[1], match[2].toLowerCase()];
+  }
+  return [s, ""];
+}
+
+/** Determine response type from extension, Accept header, query params, or User-Agent */
+function getResponseType(c: Context, extensionHint?: string): ResponseType {
+  // Check for extension-based type first (highest priority)
+  if (extensionHint && extensionTypeMap[extensionHint]) {
+    return extensionTypeMap[extensionHint];
+  }
+
+  // Check for explicit type query parameter (backwards compatibility)
   const typeParam = c.req.query("type");
   if (typeParam === "powershell" || typeParam === "ps1") {
     return "powershell";
@@ -122,12 +144,17 @@ export function createApp(config: Config): Hono {
     c.redirect("https://github.com/captainsafia/installer", 301)
   );
 
-  // PR artifacts handler: /:owner/:repo/pr/:prNumber
+  // PR artifacts handler: /:owner/:repo/pr/:prNumber or /:owner/:repo/pr/:prNumber.ext
   app.get("/:owner/:repo/pr/:prNumber", async (c: Context) => {
     const owner = c.req.param("owner") || "";
     const repo = c.req.param("repo") || "";
-    const prNumberStr = c.req.param("prNumber") || "";
-    const responseType = getResponseType(c);
+    let prNumberStr = c.req.param("prNumber") || "";
+
+    // Extract extension from PR number (e.g., "123.ps1" -> ["123", ".ps1"])
+    const [prNumberBase, prExt] = extractExtension(prNumberStr);
+    prNumberStr = prNumberBase;
+
+    const responseType = getResponseType(c, prExt);
 
     // Validate owner and repo
     if (!isValidGitHubOwner(owner)) {
@@ -161,11 +188,35 @@ export function createApp(config: Config): Hono {
   });
 
   // Main handler with path parameters: /:owner/:repo/:release?
+  // Supports extension-based content negotiation: /:owner/:repo.ps1, /:owner/:repo/v1.0.0.ps1, etc.
   app.get("/:owner/:repo/:release?", async (c: Context) => {
     const owner = c.req.param("owner") || "";
     let repo = c.req.param("repo") || "";
-    let release = c.req.param("release") || "latest";
-    const responseType = getResponseType(c);
+    let release = c.req.param("release") || "";
+
+    // Extract extension from release or repo (e.g., "v1.0.0.ps1" -> ["v1.0.0", ".ps1"])
+    let detectedExt = "";
+    if (release) {
+      const [releaseBase, releaseExt] = extractExtension(release);
+      if (releaseExt) {
+        release = releaseBase;
+        detectedExt = releaseExt;
+      }
+    } else {
+      // No release specified, check if repo has extension (e.g., "cli.ps1")
+      const [repoBase, repoExt] = extractExtension(repo);
+      if (repoExt) {
+        repo = repoBase;
+        detectedExt = repoExt;
+      }
+    }
+
+    // Default release to "latest" if not specified
+    if (!release) {
+      release = "latest";
+    }
+
+    const responseType = getResponseType(c, detectedExt);
 
     // Validate owner and repo before processing
     // Strip trailing ! from repo for validation (it's a valid modifier)
