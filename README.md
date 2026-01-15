@@ -7,6 +7,8 @@ The main branch of this repo is deployed to [i.captainsafia.sh](https://i.captai
 
 ## Usage
 
+### Linux/macOS (Shell)
+
 ```sh
 # Install <owner>/<repo> at a specific release
 curl https://i.captainsafia.sh/<owner>/<repo>/<release> | sh
@@ -20,6 +22,28 @@ curl https://i.captainsafia.sh/<owner>/<repo>/preview | sh
 # Install to /usr/local/bin/ (with move flag)
 curl "https://i.captainsafia.sh/<owner>/<repo>?move=1" | sh
 ```
+
+### Windows (PowerShell)
+
+```powershell
+# Install latest release (auto-detects PowerShell via User-Agent)
+irm https://i.captainsafia.sh/<owner>/<repo> | iex
+
+# Install latest prerelease (preview)
+irm https://i.captainsafia.sh/<owner>/<repo>/preview | iex
+
+# Install specific release
+irm https://i.captainsafia.sh/<owner>/<repo>/<release> | iex
+
+# Explicit PowerShell script (use .ps1 extension)
+irm https://i.captainsafia.sh/<owner>/<repo>.ps1 | iex
+```
+
+The installer automatically detects Windows assets (`.exe`, `.zip`) and generates a PowerShell script that:
+- Downloads the appropriate binary for your architecture (x64, arm64)
+- Extracts archives if needed (`.zip`, `.tar.gz`)
+- Installs to `%LOCALAPPDATA%\<binary>\bin\`
+- Adds the install directory to your user PATH
 
 ### Path API
 
@@ -50,13 +74,16 @@ curl https://i.captainsafia.sh/<owner>/<repo>/pr/123 | sh
 
 ### Content Negotiation
 
-The API returns different formats based on the `Accept` header:
+The API returns different formats based on file extension, `Accept` header, or User-Agent:
 
-| Accept Header | Response |
-|---------------|----------|
+| Extension / Accept Header / User-Agent | Response |
+|----------------------------------------|----------|
 | `*/*` (default) | Shell script (`text/x-shellscript`) |
-| `text/plain` | Plain text install instructions |
-| `application/json` | JSON with asset details |
+| `.ps1` extension | PowerShell script (`text/plain`) |
+| PowerShell User-Agent | PowerShell script (auto-detected) |
+| `.sh` extension | Shell script (`text/x-shellscript`) |
+| `.json` extension or `application/json` header | JSON with asset details |
+| `.txt` extension or `text/plain` header | Plain text install instructions |
 
 ### Query Parameters
 

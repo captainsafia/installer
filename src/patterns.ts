@@ -26,7 +26,9 @@ const fuzzArchAmd64 = /(x?64(bit)?)\b/i;
 const fuzzArch386 = /(x?32(bit)?|x86)\b/i;
 
 export const checksumRe = /(checksums|sha256sums)/i;
+// Note: .exe must be checked separately since it doesn't follow the typical archive pattern
 export const fileExtRe = /(\.tar)?(\.[a-z][a-z0-9]+)$/;
+export const exeExtRe = /\.exe$/i;
 export const searchGithubRe = /https:\/\/github\.com\/(\w+)\/(\w+)/;
 
 export function getOS(s: string): string {
@@ -66,6 +68,8 @@ export function getArch(s: string): string {
 }
 
 export function getFileExt(s: string): string {
+  // Check for .exe first (Windows executables)
+  if (exeExtRe.test(s)) return ".exe";
   const match = s.match(fileExtRe);
   return match ? match[0] : "";
 }
