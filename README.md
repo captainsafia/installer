@@ -35,8 +35,8 @@ irm https://i.captainsafia.sh/<owner>/<repo>/preview | iex
 # Install specific release
 irm https://i.captainsafia.sh/<owner>/<repo>/<release> | iex
 
-# Explicit PowerShell script (use ?type=powershell or ?type=ps1)
-irm "https://i.captainsafia.sh/<owner>/<repo>?type=powershell" | iex
+# Explicit PowerShell script (use .ps1 extension)
+irm https://i.captainsafia.sh/<owner>/<repo>.ps1 | iex
 ```
 
 The installer automatically detects Windows assets (`.exe`, `.zip`) and generates a PowerShell script that:
@@ -74,15 +74,16 @@ curl https://i.captainsafia.sh/<owner>/<repo>/pr/123 | sh
 
 ### Content Negotiation
 
-The API returns different formats based on the `Accept` header and query parameters:
+The API returns different formats based on file extension, `Accept` header, or User-Agent:
 
-| Accept Header / Query | Response |
-|-----------------------|----------|
+| Extension / Accept Header / User-Agent | Response |
+|----------------------------------------|----------|
 | `*/*` (default) | Shell script (`text/x-shellscript`) |
-| `?type=powershell` or `?type=ps1` | PowerShell script (`text/plain`) |
+| `.ps1` extension | PowerShell script (`text/plain`) |
 | PowerShell User-Agent | PowerShell script (auto-detected) |
-| `text/plain` | Plain text install instructions |
-| `application/json` | JSON with asset details |
+| `.sh` extension | Shell script (`text/x-shellscript`) |
+| `.json` extension or `application/json` header | JSON with asset details |
+| `.txt` extension or `text/plain` header | Plain text install instructions |
 
 ### Query Parameters
 

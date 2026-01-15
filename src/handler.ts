@@ -46,17 +46,11 @@ function extractExtension(s: string): [string, string] {
   return [s, ""];
 }
 
-/** Determine response type from extension, Accept header, query params, or User-Agent */
+/** Determine response type from extension, Accept header, or User-Agent */
 function getResponseType(c: Context, extensionHint?: string): ResponseType {
   // Check for extension-based type first (highest priority)
   if (extensionHint && extensionTypeMap[extensionHint]) {
     return extensionTypeMap[extensionHint];
-  }
-
-  // Check for explicit type query parameter (backwards compatibility)
-  const typeParam = c.req.query("type");
-  if (typeParam === "powershell" || typeParam === "ps1") {
-    return "powershell";
   }
 
   // Check Accept header

@@ -18,20 +18,6 @@ HTTP 200
 header "Content-Type" contains "text/plain"
 body contains "# PowerShell installer"
 
-# ?type=powershell should still work (backwards compatibility)
-GET http://localhost:3000/cli/cli?type=powershell
-HTTP 200
-[Asserts]
-header "Content-Type" contains "text/plain"
-body contains "# PowerShell installer"
-
-# ?type=ps1 should also return PowerShell script (backwards compatibility)
-GET http://localhost:3000/cli/cli?type=ps1
-HTTP 200
-[Asserts]
-header "Content-Type" contains "text/plain"
-body contains "# PowerShell installer"
-
 # PowerShell User-Agent should return PowerShell script
 GET http://localhost:3000/cli/cli
 User-Agent: Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.19041.1682
