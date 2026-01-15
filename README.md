@@ -2,7 +2,7 @@
 
 A GitHub release installer service, running on [Node.js](https://nodejs.org) with [Hono](https://hono.dev). This project is a port of [jpillora/installer](https://github.com/jpillora/installer).
 
-The main branch of this repo is deployed to [i.captainsafia.sh](https://i.captainsafia.sh/).
+The main branch of this repo is deployed to [i.safia.sh](https://i.safia.sh/).
 
 
 ## Usage
@@ -11,32 +11,32 @@ The main branch of this repo is deployed to [i.captainsafia.sh](https://i.captai
 
 ```sh
 # Install <owner>/<repo> at a specific release
-curl https://i.captainsafia.sh/<owner>/<repo>/<release> | sh
+curl https://i.safia.sh/<owner>/<repo>/<release> | sh
 
 # Install latest release
-curl https://i.captainsafia.sh/<owner>/<repo> | sh
+curl https://i.safia.sh/<owner>/<repo> | sh
 
 # Install latest prerelease (preview)
-curl https://i.captainsafia.sh/<owner>/<repo>/preview | sh
+curl https://i.safia.sh/<owner>/<repo>/preview | sh
 
 # Install to /usr/local/bin/ (with move flag)
-curl "https://i.captainsafia.sh/<owner>/<repo>?move=1" | sh
+curl "https://i.safia.sh/<owner>/<repo>?move=1" | sh
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
 # Install latest release (auto-detects PowerShell via User-Agent)
-irm https://i.captainsafia.sh/<owner>/<repo> | iex
+irm https://i.safia.sh/<owner>/<repo> | iex
 
 # Install latest prerelease (preview)
-irm https://i.captainsafia.sh/<owner>/<repo>/preview | iex
+irm https://i.safia.sh/<owner>/<repo>/preview | iex
 
 # Install specific release
-irm https://i.captainsafia.sh/<owner>/<repo>/<release> | iex
+irm https://i.safia.sh/<owner>/<repo>/<release> | iex
 
 # Explicit PowerShell script (use .ps1 extension)
-irm https://i.captainsafia.sh/<owner>/<repo>.ps1 | iex
+irm https://i.safia.sh/<owner>/<repo>.ps1 | iex
 ```
 
 The installer automatically detects Windows assets (`.exe`, `.zip`) and generates a PowerShell script that:
@@ -69,7 +69,7 @@ Download binaries from GitHub Actions workflow artifacts for a pull request. Req
 
 ```sh
 # Install from PR #123
-curl https://i.captainsafia.sh/<owner>/<repo>/pr/123 | sh
+curl https://i.safia.sh/<owner>/<repo>/pr/123 | sh
 ```
 
 ### Content Negotiation

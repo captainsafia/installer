@@ -8,6 +8,7 @@ import {
   renderShellScript,
   renderTextScript,
   renderPowerShellScript,
+  renderMarkdownInstructions,
 } from "./templates";
 
 const errMsgRe = /[^A-Za-z0-9 :/.]/g;
@@ -133,10 +134,16 @@ export function createApp(config: Config): Hono {
   app.get("/healthz", (c) => c.text("OK"));
   app.get("/favicon.ico", (c) => c.text("OK"));
 
-  // Redirect root to GitHub
-  app.get("/", (c) =>
-    c.redirect("https://github.com/captainsafia/installer", 301)
-  );
+  // Root endpoint: return markdown instructions or redirect to GitHub
+  app.get("/", (c) => {
+    const accept = c.req.header("Accept") || "";
+    if (accept.includes("text/markdown") || accept.includes("text/x-markdown")) {
+      return new Response(renderMarkdownInstructions(), {
+        headers: { "Content-Type": "text/markdown; charset=utf-8" },
+      });
+    }
+    return c.redirect("https://github.com/captainsafia/installer", 301);
+  });
 
   // PR artifacts handler: /:owner/:repo/pr/:prNumber or /:owner/:repo/pr/:prNumber.ext
   app.get("/:owner/:repo/pr/:prNumber", async (c: Context) => {
