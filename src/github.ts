@@ -297,7 +297,7 @@ export class GitHubClient {
     const successfulRuns = runsResp.workflow_runs.filter(
       (run) =>
         run.conclusion === "success" &&
-        run.event === "pull_request" &&
+        (run.event === "pull_request" || run.event === "pull_request_target") &&
         prPublishPattern.test(run.path)
     );
 
