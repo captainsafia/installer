@@ -230,7 +230,8 @@ run_tests() {
     # Error handling
     log_info "Testing error handling..."
     test_request "Invalid owner (special chars)" "$BASE_URL/invalid%20owner/$REPO" "400" "Invalid"
-    test_request "Non-existent repo" "$BASE_URL/$OWNER/this-repo-definitely-does-not-exist-12345" "502"
+    test_request "Non-existent repo (script)" "$BASE_URL/$OWNER/this-repo-definitely-does-not-exist-12345" "200" "exit 1"
+    test_request "Non-existent repo (JSON)" "$BASE_URL/$OWNER/this-repo-definitely-does-not-exist-12345" "502" "not found" "application/json"
     
     # Execute the downloaded script (actual installation test)
     log_info "Testing actual script execution..."

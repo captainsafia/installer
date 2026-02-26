@@ -129,12 +129,15 @@ export class GitHubClient {
         `found newest prerelease: ${release} (published ${newestTime!.toISOString()})`
       );
     } else {
-      const ghrs = await this.fetch<GHRelease[]>(baseUrl);
-      const found = ghrs.find((ghr) => ghr.tag_name === release);
-      if (!found) {
+      try {
+        const ghr = await this.fetch<GHRelease>(
+          `${baseUrl}/tags/${encodeURIComponent(release)}`
+        );
+        release = ghr.tag_name;
+        ghas = ghr.assets;
+      } catch {
         throw new Error(`release tag '${release}' not found`);
       }
-      ghas = found.assets;
     }
 
     if (ghas.length === 0) {
@@ -297,7 +300,7 @@ export class GitHubClient {
     const successfulRuns = runsResp.workflow_runs.filter(
       (run) =>
         run.conclusion === "success" &&
-        run.event === "pull_request" &&
+        (run.event === "pull_request" || run.event === "pull_request_target") &&
         prPublishPattern.test(run.path)
     );
 

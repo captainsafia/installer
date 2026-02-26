@@ -11,7 +11,7 @@ import {
   renderMarkdownInstructions,
 } from "./templates";
 
-const errMsgRe = /[^A-Za-z0-9 :/.]/g;
+const errMsgRe = /[^A-Za-z0-9 :\/.'\-]/g;
 
 // GitHub username/org: 1-39 chars, alphanumeric or hyphen, cannot start/end with hyphen
 const githubOwnerPattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/;
@@ -81,13 +81,16 @@ function createErrorResponse(
   const cleaned = msg.replace(errMsgRe, "");
   let body: string;
   if (responseType === "script") {
-    body = `echo '${cleaned}'`;
+    body = `echo '${cleaned}'; exit 1`;
   } else if (responseType === "powershell") {
     body = `Write-Host "${cleaned}" -ForegroundColor Red; exit 1`;
   } else {
-    body = cleaned;
+    return c.text(cleaned, code);
   }
-  return c.text(body, code);
+  // Return 200 for script/powershell so the shell actually executes the
+  // error-handling script body. Non-2xx causes irm/curl-piped-to-sh to
+  // abort before the script runs.
+  return c.text(body, 200);
 }
 
 /** Create a success response based on response type */
