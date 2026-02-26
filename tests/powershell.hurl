@@ -67,8 +67,8 @@ body contains "# PowerShell installer"
 body contains "v2.67.0"
 
 # Error response should be PowerShell-formatted when no Windows assets
-# captainsafia/grove latest release only has Linux/macOS binaries
-GET http://localhost:3000/captainsafia/grove.ps1
+# captainsafia/grove v1.1.0 only has Linux/macOS binaries
+GET http://localhost:3000/captainsafia/grove/v1.1.0.ps1
 HTTP 200
 [Asserts]
 body contains "Write-Host"
