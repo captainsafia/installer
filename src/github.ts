@@ -342,7 +342,7 @@ export class GitHubClient {
       // Convert artifacts to assets
       const runAssets: Asset[] = [];
       for (const artifact of validArtifacts) {
-        const expandedAssets = await this.expandWorkflowArtifact(artifact);
+        const expandedAssets = await this.expandWorkflowArtifact(artifact, repo);
         for (const asset of expandedAssets) {
           if (q.select && !asset.name.includes(q.select)) {
             console.log(`select excludes artifact: ${asset.name}`);
@@ -391,7 +391,6 @@ export class GitHubClient {
 
   private async fetchBinary(url: string): Promise<Uint8Array> {
     const headers: Record<string, string> = {
-      Accept: "application/octet-stream",
       "User-Agent": "captainsafia/installer",
     };
     if (this.config.token) {
@@ -466,7 +465,42 @@ export class GitHubClient {
     return entries;
   }
 
-  private async expandWorkflowArtifact(artifact: GHArtifact): Promise<Asset[]> {
+  private buildConventionalPRAssets(
+    program: string,
+    artifact: GHArtifact
+  ): Asset[] {
+    if (!artifact.name.toLowerCase().includes(`${program.toLowerCase()}-pr-`)) {
+      return [];
+    }
+
+    const conventionalAssets: Array<{
+      name: string;
+      os: string;
+      arch: string;
+    }> = [
+      { name: `${program}-darwin-x64`, os: "darwin", arch: "amd64" },
+      { name: `${program}-darwin-arm64`, os: "darwin", arch: "arm64" },
+      { name: `${program}-linux-x64`, os: "linux", arch: "amd64" },
+      { name: `${program}-linux-arm64`, os: "linux", arch: "arm64" },
+      { name: `${program}-windows-x64.exe`, os: "windows", arch: "amd64" },
+    ];
+
+    return conventionalAssets.map((a) => ({
+      name: a.name,
+      os: a.os,
+      arch: a.arch,
+      url: artifact.archive_download_url,
+      type: ".zip",
+      sha256: "",
+      artifactName: artifact.name,
+      archivePath: a.name,
+    }));
+  }
+
+  private async expandWorkflowArtifact(
+    artifact: GHArtifact,
+    program: string
+  ): Promise<Asset[]> {
     const os = getOS(artifact.name);
     const arch = getArch(artifact.name);
 
@@ -524,6 +558,14 @@ export class GitHubClient {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(`  failed to inspect artifact '${artifact.name}': ${msg}`);
+    }
+
+    const conventionalAssets = this.buildConventionalPRAssets(program, artifact);
+    if (conventionalAssets.length > 0) {
+      console.log(
+        `  using conventional PR artifact mapping for '${artifact.name}'`
+      );
+      return conventionalAssets;
     }
 
     // Fallback for single-file artifacts where os/arch are not encoded in the artifact name.
