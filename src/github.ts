@@ -5,6 +5,7 @@ import type {
   QueryResult,
   GHAsset,
   GHRelease,
+  GHArtifact,
   GHArtifactsResponse,
   GHWorkflowRunsResponse,
   GHPullRequest,
@@ -341,30 +342,30 @@ export class GitHubClient {
       // Convert artifacts to assets
       const runAssets: Asset[] = [];
       for (const artifact of validArtifacts) {
-        // Artifacts are always zip files
-        const os = getOS(artifact.name);
-        const arch = getArch(artifact.name);
-
-        // Default OS to linux, default arch based on OS (arm64 for macOS, amd64 otherwise)
-        const resolvedOs = os || "linux";
-        const resolvedArch = arch || (resolvedOs === "darwin" ? "arm64" : "amd64");
-
-        const asset: Asset = {
-          name: artifact.name,
-          os: resolvedOs,
-          arch: resolvedArch,
-          url: artifact.archive_download_url,
-          type: ".zip",
-          sha256: "",
-        };
-
-        runAssets.push(asset);
+        const expandedAssets = await this.expandWorkflowArtifact(artifact);
+        for (const asset of expandedAssets) {
+          if (q.select && !asset.name.includes(q.select)) {
+            console.log(`select excludes artifact: ${asset.name}`);
+            continue;
+          }
+          runAssets.push(asset);
+        }
       }
 
-      if (runAssets.length > 0) {
+      const uniqueAssets = new Map<string, Asset>();
+      for (const asset of runAssets) {
+        const key = assetKey(asset);
+        if (!uniqueAssets.has(key)) {
+          uniqueAssets.set(key, asset);
+        }
+      }
+
+      if (uniqueAssets.size > 0) {
         // Found a run with usable artifacts
         selectedRun = run;
-        assets = runAssets;
+        assets = Array.from(uniqueAssets.values()).sort((a, b) =>
+          assetKey(a).localeCompare(assetKey(b))
+        );
         break;
       }
 
@@ -388,6 +389,159 @@ export class GitHubClient {
     return { release, assets };
   }
 
+  private async fetchBinary(url: string): Promise<Uint8Array> {
+    const headers: Record<string, string> = {
+      Accept: "application/octet-stream",
+      "User-Agent": "captainsafia/installer",
+    };
+    if (this.config.token) {
+      headers["Authorization"] = `Bearer ${this.config.token}`;
+    }
+
+    const resp = await fetch(url, { headers, redirect: "follow" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`${resp.statusText} ${body}`);
+    }
+
+    return new Uint8Array(await resp.arrayBuffer());
+  }
+
+  private listZipEntries(zipData: Uint8Array): string[] {
+    const view = new DataView(
+      zipData.buffer,
+      zipData.byteOffset,
+      zipData.byteLength
+    );
+    const minEocdSize = 22;
+    const maxCommentSize = 0xffff;
+    const eocdSignature = 0x06054b50;
+    const centralDirectorySignature = 0x02014b50;
+
+    let eocdOffset = -1;
+    const searchStart = Math.max(0, zipData.byteLength - minEocdSize - maxCommentSize);
+    for (let i = zipData.byteLength - minEocdSize; i >= searchStart; i--) {
+      if (view.getUint32(i, true) === eocdSignature) {
+        eocdOffset = i;
+        break;
+      }
+    }
+
+    if (eocdOffset === -1) {
+      throw new Error("invalid zip: end-of-central-directory record not found");
+    }
+
+    const totalEntries = view.getUint16(eocdOffset + 10, true);
+    const centralDirectoryOffset = view.getUint32(eocdOffset + 16, true);
+    const decoder = new TextDecoder("utf-8");
+    const entries: string[] = [];
+
+    let offset = centralDirectoryOffset;
+    for (let i = 0; i < totalEntries; i++) {
+      if (offset + 46 > zipData.byteLength) {
+        throw new Error("invalid zip: central directory entry overflow");
+      }
+      if (view.getUint32(offset, true) !== centralDirectorySignature) {
+        throw new Error("invalid zip: central directory signature mismatch");
+      }
+
+      const fileNameLength = view.getUint16(offset + 28, true);
+      const extraFieldLength = view.getUint16(offset + 30, true);
+      const fileCommentLength = view.getUint16(offset + 32, true);
+
+      const fileNameStart = offset + 46;
+      const fileNameEnd = fileNameStart + fileNameLength;
+      if (fileNameEnd > zipData.byteLength) {
+        throw new Error("invalid zip: file name overflow");
+      }
+
+      const fileName = decoder.decode(zipData.subarray(fileNameStart, fileNameEnd));
+      if (fileName && !fileName.endsWith("/")) {
+        entries.push(fileName);
+      }
+
+      offset = fileNameEnd + extraFieldLength + fileCommentLength;
+    }
+
+    return entries;
+  }
+
+  private async expandWorkflowArtifact(artifact: GHArtifact): Promise<Asset[]> {
+    const os = getOS(artifact.name);
+    const arch = getArch(artifact.name);
+
+    if (os !== "" && arch !== "") {
+      return [
+        {
+          name: artifact.name,
+          os,
+          arch,
+          url: artifact.archive_download_url,
+          type: ".zip",
+          sha256: "",
+          artifactName: artifact.name,
+        },
+      ];
+    }
+
+    try {
+      const archive = await this.fetchBinary(artifact.archive_download_url);
+      const entryNames = this.listZipEntries(archive);
+      const inferredAssets = new Map<string, Asset>();
+
+      for (const entry of entryNames) {
+        const entryFileName = entry.split("/").pop() || entry;
+        const entryOS = getOS(entryFileName);
+        const entryArch = getArch(entryFileName);
+
+        if (entryOS === "" || entryArch === "") {
+          continue;
+        }
+
+        const key = `${entryOS}/${entryArch}`;
+        if (inferredAssets.has(key)) {
+          continue;
+        }
+
+        inferredAssets.set(key, {
+          name: entryFileName,
+          os: entryOS,
+          arch: entryArch,
+          url: artifact.archive_download_url,
+          type: ".zip",
+          sha256: "",
+          artifactName: artifact.name,
+          archivePath: entry,
+        });
+      }
+
+      if (inferredAssets.size > 0) {
+        console.log(
+          `  inferred ${inferredAssets.size} platform artifact(s) from ${artifact.name}`
+        );
+        return Array.from(inferredAssets.values());
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(`  failed to inspect artifact '${artifact.name}': ${msg}`);
+    }
+
+    // Fallback for single-file artifacts where os/arch are not encoded in the artifact name.
+    const resolvedOS = os || "linux";
+    const resolvedArch = arch || (resolvedOS === "darwin" ? "arm64" : "amd64");
+    return [
+      {
+        name: artifact.name,
+        os: resolvedOS,
+        arch: resolvedArch,
+        url: artifact.archive_download_url,
+        type: ".zip",
+        sha256: "",
+        artifactName: artifact.name,
+      },
+    ];
+  }
+
   private async getSumIndex(ghas: GHAsset[]): Promise<Record<string, string>> {
     let url = "";
     for (const ga of ghas) {
@@ -404,8 +558,8 @@ export class GitHubClient {
         Accept: "application/octet-stream",
         "User-Agent": "installer",
       };
-      if (this.token) {
-        headers["Authorization"] = `token ${this.token}`;
+      if (this.config.token) {
+        headers["Authorization"] = `token ${this.config.token}`;
       }
       const resp = await fetch(url, { headers, redirect: "follow" });
       if (!resp.ok) return {};

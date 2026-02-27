@@ -94,6 +94,8 @@ export function renderShellScript(result: QueryResult): string {
 		URL="${a.url}"
 		FTYPE="${a.type}"
 		ASSET_NAME="${a.name}"
+		ARTIFACT_NAME="${a.artifactName || a.name}"
+		ARCHIVE_PATH="${a.archivePath || ""}"
 		;;`
     )
     .join("\n");
@@ -217,6 +219,8 @@ install_binary() {
 	URL=""
 	FTYPE=""
 	ASSET_NAME=""
+	ARTIFACT_NAME=""
+	ARCHIVE_PATH=""
 	case "\${OS}_\${ARCH}" in
 ${assetCases}
 	*) fail "No asset for platform \${OS}-\${ARCH}";;
@@ -262,7 +266,7 @@ ${assetCases}
 	if [ "$IS_ARTIFACT" = "true" ] && [ "$HAS_GH" = "true" ]; then
 		#use gh CLI for artifact downloads (handles auth automatically)
 		echo "Using gh CLI to download artifact..."
-		gh run download --repo "$USER/$PROG" --name "$ASSET_NAME" --dir . || fail "gh download failed"
+		gh run download --repo "$USER/$PROG" --name "$ARTIFACT_NAME" --dir . || fail "gh download failed"
 		#gh downloads artifacts as directories, find any zip files and extract them
 		for zip in *.zip; do
 			if [ -f "$zip" ]; then
@@ -298,8 +302,20 @@ ${assetCases}
 	else
 		fail "unknown file type: $FTYPE"
 	fi
-	#search subtree largest file (bin)
-	TMP_BIN=$(find . -type f | xargs du | sort -n | tail -n 1 | cut -f 2)
+	#prefer exact path for combined PR artifacts
+	TMP_BIN=""
+	if [ -n "$ARCHIVE_PATH" ]; then
+		if [ -f "$ARCHIVE_PATH" ]; then
+			TMP_BIN="$ARCHIVE_PATH"
+		else
+			ARCHIVE_BASE="\${ARCHIVE_PATH##*/}"
+			TMP_BIN=$(find . -type f -name "$ARCHIVE_BASE" | xargs du | sort -n | tail -n 1 | cut -f 2)
+		fi
+	fi
+	#fallback to largest file when no exact match is known
+	if [ -z "$TMP_BIN" ]; then
+		TMP_BIN=$(find . -type f | xargs du | sort -n | tail -n 1 | cut -f 2)
+	fi
 	if [ ! -f "$TMP_BIN" ]; then
 		fail "could not find find binary (largest file)"
 	fi
@@ -417,6 +433,8 @@ exit 1`;
       (a) => `        "${a.arch}" {
             $Url = "${a.url}"
             $AssetName = "${a.name}"
+            $DownloadName = "${a.artifactName || a.name}"
+            $ArchivePath = "${a.archivePath || ""}"
             $FileType = "${a.type}"
         }`
     )
@@ -488,6 +506,8 @@ function Main {
     # Select asset based on architecture
     $Url = $null
     $AssetName = $null
+    $DownloadName = $null
+    $ArchivePath = $null
     $FileType = $null
 
     switch ($Arch) {
@@ -526,7 +546,7 @@ ${assetCases}
     New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 
     try {
-        $TempFile = Join-Path $TempDir $AssetName
+        $TempFile = Join-Path $TempDir $DownloadName
         Invoke-WebRequest -Uri $Url -OutFile $TempFile -Headers $Headers -ErrorAction Stop
 
         # Handle different file types
@@ -540,11 +560,25 @@ ${assetCases}
                 # Extract zip
                 $ExtractDir = Join-Path $TempDir "extracted"
                 Expand-Archive -Path $TempFile -DestinationPath $ExtractDir -Force
+                if ($ArchivePath) {
+                    $ExpectedPath = Join-Path $ExtractDir $ArchivePath
+                    if (Test-Path $ExpectedPath) {
+                        $BinaryPath = $ExpectedPath
+                    } else {
+                        $ArchiveLeaf = Split-Path $ArchivePath -Leaf
+                        $BinaryPath = Get-ChildItem -Path $ExtractDir -Recurse -File -Filter $ArchiveLeaf |
+                            Sort-Object Length -Descending |
+                            Select-Object -First 1 |
+                            ForEach-Object { $_.FullName }
+                    }
+                }
                 # Find the largest .exe file (the binary)
-                $BinaryPath = Get-ChildItem -Path $ExtractDir -Recurse -Filter "*.exe" |
-                    Sort-Object Length -Descending |
-                    Select-Object -First 1 |
-                    ForEach-Object { $_.FullName }
+                if (-not $BinaryPath) {
+                    $BinaryPath = Get-ChildItem -Path $ExtractDir -Recurse -Filter "*.exe" |
+                        Sort-Object Length -Descending |
+                        Select-Object -First 1 |
+                        ForEach-Object { $_.FullName }
+                }
                 if (-not $BinaryPath) {
                     # No .exe found, look for largest file
                     $BinaryPath = Get-ChildItem -Path $ExtractDir -Recurse -File |
