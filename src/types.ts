@@ -19,6 +19,8 @@ export interface Asset {
   url: string;
   type: string;
   sha256: string;
+  artifactName?: string;
+  archivePath?: string;
 }
 
 export function assetKey(a: Asset): string {
